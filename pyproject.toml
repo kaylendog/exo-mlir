@@ -1,0 +1,10 @@
+[project]
+name = "exolang-mlir"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "exo-lang>=0.2.1",
+    "xdsl>=0.23.0",
+]
