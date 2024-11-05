@@ -1,0 +1,7 @@
+{
+	"files.associations": {
+		"*.cfg": "plaintext",
+		"benchmark.h": "c",
+		"stdlib.h": "c"
+	}
+}
