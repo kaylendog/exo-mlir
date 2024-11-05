@@ -2,42 +2,57 @@
 
 .PHONY: clean
 clean:
-	rm -rf build
+	rm -rf build submodules/benchmark/build
 
 .PHONY: env
 env:
 	uv venv
 	uv sync --all-extras
-	@. .venv/bin/activate
+	. .venv/bin/activate
 
-BENCHMARKS := $(wildcard benchmarks/*.py)
+BUILD_DIR := build
+BIN := $(BUILD_DIR)/bin
 
-compile-submodule-benchmark:
-	mkdir -p build
-	cd submodules/benchmark
-	cmake -E make_directory build
-	cmake -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_TESTING=false -S . -B "build"
-	cmake --build "build" --config Release
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
 
-compile-benchmarks: env compile-submodule-benchmark $(BENCHMARKS) benchmarks/benchmark.cc
-	mkdir -p build
-	for bench in $(BENCHMARKS); do \
-		exocc -o build/benchmark --stem $$(basename $$bench .py) $$bench; \
-	done
-	for src in $(wildcard build/benchmark/*.c); do \
-		gcc -std=c17 -O3 -Wall -Wextra -mavx2 -march=x86-64-v3 -I build/benchmark -c $$src -o build/benchmark/$$(basename $$src .c).o; \
-	done
+$(BIN):
+	mkdir -p $(BIN)
+
+# --- Submodules ---
+
+submodules/benchmark:
+	git submodule update --init --recursive
+
+submodules/benchmark/build: submodules/benchmark
+	cmake -S submodules/benchmark -B submodules/benchmark/build \
+		-DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_TESTING=false
+	cmake --build submodules/benchmark/build --config Release
+
+# --- Benchmarking ---
+
+BENCHMARK_SRC_DIR := benchmarks
+BENCHMARK_BUILD_DIR := $(BUILD_DIR)/benchmark
+BENCHMARK_BIN := $(BIN)/benchmark
+BENCHMARK_PROC_PY := $(wildcard $(BENCHMARK_SRC_DIR)/*.py)
+BENCHMARK_PROC_OBJ := $(patsubst $(BENCHMARK_SRC_DIR)/%.py, $(BENCHMARK_BUILD_DIR)/%.o, $(BENCHMARK_PROC_PY))
+
+$(BENCHMARK_BUILD_DIR):
+	mkdir -p $(BENCHMARK_BUILD_DIR)
+
+$(BENCHMARK_BUILD_DIR)/%.c: $(BENCHMARK_SRC_DIR)/%.py | $(BENCHMARK_BUILD_DIR)
+	exocc -o $(BENCHMARK_BUILD_DIR) --stem $(basename $(notdir $<)) $<
+
+$(BENCHMARK_BUILD_DIR)/%.o: $(BENCHMARK_BUILD_DIR)/%.c
+	gcc -std=c17 -O3 -Wall -Wextra -mavx2 -march=x86-64-v3 -I $(BENCHMARK_BUILD_DIR) -c $< -o $@
+
+$(BENCHMARK_BIN): $(BENCHMARK_PROC_OBJ) submodules/benchmark/build $(BENCHMARK_SRC_DIR)/benchmark.cc | $(BIN)
 	g++ -std=c++17 -O3 -Wall -Wextra \
-		-I build/benchmark \
-		-I submodules/benchmark/include \
-		-c benchmarks/benchmark.cc \
-		-o build/benchmark/benchmark.o
-	g++ -o \
-		build/benchmark/benchmark \
-		build/benchmark/*.o \
-		-L submodules/benchmark/build/src \
-		-lbenchmark -lpthread -lbenchmark_main -lstdc++ -lm
-	chmod +x build/benchmark/benchmark
+		-I $(BENCHMARK_BUILD_DIR) -I submodules/benchmark/include \
+		$(BENCHMARK_PROC_OBJ) $(BENCHMARK_SRC_DIR)/benchmark.cc \
+		-o $(BENCHMARK_BIN) \
+		-L submodules/benchmark/build/src -lbenchmark -lpthread -lbenchmark_main -lm
 
-benchmark: compile-benchmarks
-	build/benchmark/benchmark
+.PHONY: benchmark
+benchmark: $(BENCHMARK_BIN)
+	$(BENCHMARK_BIN)
