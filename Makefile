@@ -44,10 +44,13 @@ $(BENCHMARK_BUILD_DIR)/%.c: $(BENCHMARK_SRC_DIR)/%.py | $(BENCHMARK_BUILD_DIR)
 	exocc -o $(BENCHMARK_BUILD_DIR) --stem $(basename $(notdir $<)) $<
 
 $(BENCHMARK_BUILD_DIR)/%.o: $(BENCHMARK_BUILD_DIR)/%.c
-	gcc -std=c17 -O3 -Wall -Wextra -mavx2 -march=x86-64-v3 -I $(BENCHMARK_BUILD_DIR) -c $< -o $@
+	clang -std=c17 -O3 -Wall -Wextra -I $(BENCHMARK_BUILD_DIR) -c $< -o $@
+
+$(BENCHMARK_BUILD_DIR)/avx2_matmul.o: $(BENCHMARK_BUILD_DIR)/avx2_matmul.c
+	clang -std=c17 -O3 -Wall -Wextra -I $(BENCHMARK_BUILD_DIR) -c $< -o $@ -mavx2 -march=x86-64-v3
 
 $(BENCHMARK_BIN): $(BENCHMARK_PROC_OBJ) submodules/benchmark/build $(BENCHMARK_SRC_DIR)/benchmark.cc | $(BIN)
-	g++ -std=c++17 -O3 -Wall -Wextra \
+	clang++ -std=c++17 -O3 -Wall -Wextra \
 		-I $(BENCHMARK_BUILD_DIR) -I submodules/benchmark/include \
 		$(BENCHMARK_PROC_OBJ) $(BENCHMARK_SRC_DIR)/benchmark.cc \
 		-o $(BENCHMARK_BIN) \
