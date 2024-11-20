@@ -1,0 +1,9 @@
+# common compiler flags
+cflags: -std=c17 -O3 -Wall -Wextra
+
+# architecture flags
+arch_flags:
+    x86_64: -march=x86-64-v3 -mavx2
+    armv8: -march=armv8-a -mneon
+
+cxxflags: -std=c++17 -O3 -Wall -Wextra

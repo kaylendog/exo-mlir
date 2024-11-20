@@ -1,14 +1,7 @@
 .ONESHELL:
 
-.PHONY: clean
-clean:
-	rm -rf build submodules/benchmark/build
-
-.PHONY: env
-env:
-	uv venv
-	uv sync --all-extras
-	. .venv/bin/activate
+COMMAND := $(firstword $(MAKECMDGOALS))
+ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 
 BUILD_DIR := build
 BIN := $(BUILD_DIR)/bin
@@ -18,6 +11,16 @@ $(BUILD_DIR):
 
 $(BIN):
 	mkdir -p $(BIN)
+	
+.PHONY: clean
+clean:
+	rm -rf build submodules/benchmark/build
+
+.PHONY: env
+env:
+	uv venv
+	uv sync --all-extras
+	. .venv/bin/activate
 
 # --- Submodules ---
 
@@ -55,4 +58,4 @@ $(BENCHMARK_BIN): $(BENCHMARK_PROC_OBJ) submodules/benchmark/build $(BENCHMARK_S
 
 .PHONY: benchmark
 benchmark: $(BENCHMARK_BIN)
-	$(BENCHMARK_BIN)
+	$(BENCHMARK_BIN) $(ARGS)

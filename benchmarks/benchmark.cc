@@ -18,9 +18,10 @@
         for (int j = 0; j < (M); j++)                         \
             Name[i * (M) + j] = 0.0;
 
-static void BM_sgemm(benchmark::State &state) {
+static void BM_sgemm(benchmark::State &state)
+{
     int size = state.range(0);
-    
+
     RAND_MAT(A, size, size);
     RAND_MAT(B, size, size);
     ZERO_MAT(C, size, size);
@@ -33,7 +34,8 @@ static void BM_sgemm(benchmark::State &state) {
 
 BENCHMARK(BM_sgemm)->RangeMultiplier(2)->Range(8, 8 << 7);
 
-static void BM_x86_matmul(benchmark::State &state) {
+static void BM_x86_matmul(benchmark::State &state)
+{
     int size = state.range(0);
 
     RAND_MAT(A, 6, size);
