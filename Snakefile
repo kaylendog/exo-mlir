@@ -22,7 +22,7 @@ rule env:
 
 rule submodules:
     output:
-        "submodules"
+        directory("submodules")
     shell:
         "git submodule update --init --recursive"
 
@@ -30,7 +30,7 @@ rule libbenchmark:
     input:
         "submodules/benchmark"
     output:
-        "submodules/benchmark/build"
+        directory("submodules/benchmark/build")
     shell:
         """
         cmake -S submodules/benchmark -B submodules/benchmark/build -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_TESTING=OFF
@@ -41,28 +41,25 @@ rule mkdirs:
     shell:
         f"mkdir -p build/common build/{HOST_ARCH} bin"
 
+rule exo:
+    input:
+        "benchmarks/{arch}/{stem}.py"
+    output:
+        "build/{arch}/{stem}.c",
+        "build/{arch}/{stem}.h"
+    shell:
+        "exocc -o build/{wildcards.arch} --stem {wildcards.stem} {input}"
+
 rule compile:
     input:
         "build/{arch}/{stem}.c"
     output:
         "build/{arch}/{stem}.o"
     params:
-        arch = "{arch}",
-        stem = "{stem}"
+        arch_flags=lambda wildcards: config['arch_flags'][wildcards.arch],
+        cflags=config["cflags"]
     shell:
-        "clang -c {input} -o {output} {config[arch_flags][params.arch]} {config[cflags]}"
-
-rule exo:
-    input:
-        "benchmarks/{arch}/{stem}.py"
-    output:
-        "build/{arch}/{stem}.c"
-        "build/{arch}/{stem}.h"
-    params:
-        arch = "{arch}",
-        stem = "{stem}"
-    shell:
-        "exocc -o build/{params.arch} --stem {params.stem} {input}"
+        "clang -c {input} -o {output} {params.arch_flags} {params.cflags}"
 
 # compute benchmarks we can run on this host
 ARCH_SRC = glob_wildcards(f"benchmarks/{HOST_ARCH}/{{stem}}.py")
