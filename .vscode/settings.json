@@ -67,5 +67,6 @@
 		"streambuf": "cpp",
 		"thread": "cpp",
 		"typeinfo": "cpp"
-	}
+	},
+	"mlir.server_path": "./submodules/llvm-project/build/bin/"
 }

@@ -7,3 +7,6 @@ branch = v1.7.1
 path = submodules/llvm-project
 url = https://github.com/llvm/llvm-project.git
 branch = llvmorg-19.1.4
+[submodule "submodules/vscode-mlir"]
+	path = submodules/vscode-mlir
+	url = https://github.com/llvm/vscode-mlir.git
