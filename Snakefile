@@ -1,6 +1,5 @@
 import platform
-
-HOST_ARCH = platform.machine()
+import subprocess
 
 configfile: "config.yaml"
 
@@ -26,7 +25,7 @@ rule submodules:
     shell:
         "git submodule update --init --recursive"
 
-rule libbenchmark:
+rule compile_submodule_benchmark:
     input:
         "submodules/benchmark"
     output:
@@ -39,41 +38,41 @@ rule libbenchmark:
 
 rule mkdirs:
     shell:
-        f"mkdir -p build/common build/{HOST_ARCH} bin"
-
-rule exo:
-    input:
-        "benchmarks/{arch}/{stem}.py"
+        f"mkdir -p build/benchmarks/bin"
     output:
-        "build/{arch}/{stem}.c",
-        "build/{arch}/{stem}.h"
+        directory("build/benchmarks")
+        directory("bin")
+
+rule compile_exo_all_procedures:
+    input:
+        "benchmarks/{proc}/{stem}.py"
+    output:
+        "build/benchmarks/{proc}/{stem}.c"
+        "build/benchmarks/{proc}/{stem}.h"
     shell:
-        "exocc -o build/{wildcards.arch} --stem {wildcards.stem} {input}"
+        """
+        mkdir -p build/benchmarks/{wildcards.proc}
+        exocc -o build//benchmarks/{wildcards.proc} --stem {wildcards.stem} benchmarks/{wildcards.proc}/{wildcards.stem}.py
+        """
 
-rule compile:
+rule compile_cc_ext_procedures:
     input:
-        "build/{arch}/{stem}.c"
+        "benchmarks/{proc}/{stem}-{ext}.c"
+        "benchmarks/{proc}/{stem}-{ext}.h"
     output:
-        "build/{arch}/{stem}.o"
+        "build/benchmarks/{proc}/{stem}-{ext}.o"
     params:
-        arch_flags=lambda wildcards: config['arch_flags'][wildcards.arch],
-        cflags=config["cflags"]
+        cc: config["cc"]
+        cflags: config["cflags"]
+        ext_flags: config["ext_flags"][wildcards.ext]
     shell:
-        "clang -c {input} -o {output} {params.arch_flags} {params.cflags}"
+        """
+        {params.cc} {params.cflags} {params.ext_flags} -c -o build/benchmarks/{wildcards.proc}/{wildcards.stem}-{wildcards.ext}.o benchmarks/{wildcards.proc}/{wildcards.stem}-{wildcards.arch}.c
+        """
 
-# compute benchmarks we can run on this host
-ARCH_SRC = glob_wildcards(f"benchmarks/{HOST_ARCH}/{{stem}}.py")
-COMMON_SRC = glob_wildcards("benchmarks/common/{stem}.py")
+def supports_ext(ext: str):
+    return subprocess.run(["grep", "/proc/cpuinfo", ext], stdout=subprocess.PIPE).returncode == 0
 
-rule benchmark:
-    input:
-        arch=expand(f"build/{HOST_ARCH}/{{stem}}.o", stem=ARCH_SRC.stem),
-        common=expand("build/common/{stem}.o", stem=COMMON_SRC.stem),
-        libbenchmark="submodules/benchmark/build/src",
-        src="benchmarks/benchmark.cc"
-    output:
-        "bin/benchmark"
-    shell:
-        "clang++ -o {output} {input.arch} {input.common} {input.src} {config[cxxflags]}"
-        " -I build/{HOST_ARCH} -I build/common"
-        " -I submodules/benchmark/include -L {input.libbenchmark} -lbenchmark -lpthread"
+
+# rule to build all compatible procedures 
+rule compile_cc_all_procedures:
