@@ -25,3 +25,5 @@ AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
 
 ColumnLimit: 120
+
+PenaltyBreakFunctionArgs: 100

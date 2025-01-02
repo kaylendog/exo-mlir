@@ -3,76 +3,88 @@ import subprocess
 
 configfile: "config.yaml"
 
+def supports_variant(variant):
+    return subprocess.run(["grep", variant, "/proc/cpuinfo"], stdout=subprocess.PIPE).returncode == 0 or variant == "base"
+
+KERNELS = [
+    "matmul"
+]
+
+EXO_VARIANTS = [
+    "base", # baseline naive implementations
+    "avx2", # x86 AVX2
+    "neon" # ARM neon
+]
+
+SUPPORTED_EXO_VARIANTS = [
+    variant for variant in EXO_VARIANTS if supports_variant(variant)
+]
+
+rule exocc_compile:
+    input:
+        "benchmarks/{kernel}/{variant}.py"
+    output:
+        "build/benchmarks/{kernel}/{variant}.c",
+        "build/benchmarks/{kernel}/{variant}.h"
+    wildcard_constraints:
+        variant="|".join(EXO_VARIANTS)
+    shell:
+        "exocc -o build/benchmarks/{wildcards.kernel} --stem {wildcards.variant} {input}"
+
+rule cc_compile:
+    input:
+        c="build/benchmarks/{kernel}/{variant}.c",
+        h="build/benchmarks/{kernel}/{variant}.h"
+    output:
+        "build/benchmarks/{kernel}/{variant}.S"
+    params:
+        cc=config["cc"],
+        cflags=config["cflags"],
+        vflags=lambda wildcards: config["vflags"][wildcards.variant]
+    shell:
+        "{params.cc} -I$(dirname {input}) {params.cflags} {params.vflags} -S -o {output} {input.c}"
+
+rule cc_compile_main:
+    input:
+        "benchmarks/{kernel}/main.c"
+    output:
+        "build/benchmarks/{kernel}/main.S"
+    params:
+        cc=config["cc"],
+        cflags=config["cflags"]
+    shell:
+        "{params.cc} -I$(dirname {input}) {params.cflags} -S -o {output} {input}"
+
+rule cc_assemble:
+    input:
+        "{source}.S"
+    output:
+        "{source}.o"
+    params:
+        cc=config["cc"],
+        asflags=config["asflags"]
+    shell:
+        "{params.cc} {params.asflags} -c -o {output} {input}"
+
+rule cc_link:
+    input:
+        "build/benchmarks/{kernel}/{variant}.o",
+        "build/benchmarks/{kernel}/main.o"
+    output:
+        "build/benchmarks/{kernel}/{variant}.x"
+    params:
+        cc=config["cc"]
+    shell:
+        "{params.cc} -o {output} {input}"
+
+rule benchmark:
+    input:
+        "build/benchmarks/{kernel}/{variant}.x"
+    output:
+        "build/benchmarks/{kernel}/{variant}.csv"
+    shell:
+        "{input} > {output}"
+
 rule all:
     input:
-        "bin/benchmark"
-
-rule clean:
-    shell:
-        "rm -rf build submodules/benchmark/build"
-
-rule env:
-    shell:
-        """
-        uv venv
-        uv sync --all-extras
-        source .venv/bin/activate
-        """
-
-rule submodules:
-    output:
-        directory("submodules")
-    shell:
-        "git submodule update --init --recursive"
-
-rule compile_submodule_benchmark:
-    input:
-        "submodules/benchmark"
-    output:
-        directory("submodules/benchmark/build")
-    shell:
-        """
-        cmake -S submodules/benchmark -B submodules/benchmark/build -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_TESTING=OFF
-        cmake --build submodules/benchmark/build --config Release
-        """
-
-rule mkdirs:
-    shell:
-        f"mkdir -p build/benchmarks/bin"
-    output:
-        directory("build/benchmarks")
-        directory("bin")
-
-rule compile_exo_all_procedures:
-    input:
-        "benchmarks/{proc}/{stem}.py"
-    output:
-        "build/benchmarks/{proc}/{stem}.c"
-        "build/benchmarks/{proc}/{stem}.h"
-    shell:
-        """
-        mkdir -p build/benchmarks/{wildcards.proc}
-        exocc -o build//benchmarks/{wildcards.proc} --stem {wildcards.stem} benchmarks/{wildcards.proc}/{wildcards.stem}.py
-        """
-
-rule compile_cc_ext_procedures:
-    input:
-        "benchmarks/{proc}/{stem}-{ext}.c"
-        "benchmarks/{proc}/{stem}-{ext}.h"
-    output:
-        "build/benchmarks/{proc}/{stem}-{ext}.o"
-    params:
-        cc: config["cc"]
-        cflags: config["cflags"]
-        ext_flags: config["ext_flags"][wildcards.ext]
-    shell:
-        """
-        {params.cc} {params.cflags} {params.ext_flags} -c -o build/benchmarks/{wildcards.proc}/{wildcards.stem}-{wildcards.ext}.o benchmarks/{wildcards.proc}/{wildcards.stem}-{wildcards.arch}.c
-        """
-
-def supports_ext(ext: str):
-    return subprocess.run(["grep", "/proc/cpuinfo", ext], stdout=subprocess.PIPE).returncode == 0
-
-
-# rule to build all compatible procedures 
-rule compile_cc_all_procedures:
+        expand("build/benchmarks/{kernel}/{variant}.csv", kernel=KERNELS, variant=SUPPORTED_EXO_VARIANTS)

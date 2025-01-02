@@ -4,8 +4,10 @@ cxx: clang++
 cflags: -std=c17 -O3 -Wall -Wextra
 cxxflags: -std=c++17 -O3 -Wall -Wextra
 
+asflags: -O3
+
 # architecture flags
-ext_flags:
+vflags:
     base: ""
-    avx2: -mavx2
+    avx2: -mavx2 -mfma
     neon: -mfpu=neon
