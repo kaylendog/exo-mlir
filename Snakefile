@@ -26,6 +26,7 @@ rule exocc_compile:
     output:
         "build/benchmarks/{kernel}/{variant}.c",
         "build/benchmarks/{kernel}/{variant}.h"
+     # exclude main
     wildcard_constraints:
         variant="|".join(EXO_VARIANTS)
     shell:
@@ -37,39 +38,60 @@ rule cc_compile:
         h="build/benchmarks/{kernel}/{variant}.h"
     output:
         "build/benchmarks/{kernel}/{variant}.S"
+     # exclude main
+    wildcard_constraints:
+        variant="|".join(EXO_VARIANTS)
     params:
         cc=config["cc"],
+        include=lambda wildcards: "build/benchmarks/{wildcards.kernel}",
         cflags=config["cflags"],
         vflags=lambda wildcards: config["vflags"][wildcards.variant]
     shell:
-        "{params.cc} -I$(dirname {input}) {params.cflags} {params.vflags} -S -o {output} {input.c}"
-
-rule cc_compile_main:
-    input:
-        "benchmarks/{kernel}/main.c"
-    output:
-        "build/benchmarks/{kernel}/main.S"
-    params:
-        cc=config["cc"],
-        cflags=config["cflags"]
-    shell:
-        "{params.cc} -I$(dirname {input}) {params.cflags} -S -o {output} {input}"
+        "{params.cc} -I{params.include} {params.cflags} {params.vflags} -S -o {output} {input.c}"
 
 rule cc_assemble:
     input:
-        "{source}.S"
+        "build/benchmarks/{kernel}/{variant}.S"
     output:
-        "{source}.o"
+        "build/benchmarks/{kernel}/{variant}.o"
+    # exclude main
+    wildcard_constraints:
+        variant="|".join(EXO_VARIANTS)
     params:
         cc=config["cc"],
         asflags=config["asflags"]
     shell:
         "{params.cc} {params.asflags} -c -o {output} {input}"
 
+rule cc_compile_benchmark:
+    input:
+        c="benchmarks/benchmark.c",
+        h="benchmarks/benchmark.h"
+    output:
+        "build/benchmarks/benchmark.o"
+    params:
+        cc=config["cc"],
+        cflags=config["cflags"],
+        ldflags=config["ldflags"]
+    shell:
+        "{params.cc} -Ibenchmarks {params.cflags} -c -o {output} {input.c} {params.ldflags}"
+
+rule cc_compile_main:
+    input:
+        "benchmarks/{kernel}/main.c",
+    output:
+        "build/benchmarks/{kernel}/main.o"
+    params:
+        cc=config["cc"],
+        cflags=config["cflags"]
+    shell:
+        "{params.cc} -Ibenchmarks -I$(dirname {input})  {params.cflags} -c -o {output} {input}"
+
 rule cc_link:
     input:
         "build/benchmarks/{kernel}/{variant}.o",
-        "build/benchmarks/{kernel}/main.o"
+        "build/benchmarks/{kernel}/main.o",
+        "build/benchmarks/benchmark.o"
     output:
         "build/benchmarks/{kernel}/{variant}.x"
     params:

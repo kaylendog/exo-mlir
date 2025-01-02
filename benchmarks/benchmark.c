@@ -4,36 +4,9 @@
 #include <stdlib.h>
 #include <time.h>
 
-typedef struct matrix {
-	long width;
-	long height;
-	float *data;
-} matrix_t;
+#include "benchmark.h"
 
-/// @brief Generate a matrix of uniformly distributed in the range [0, 1] floats.
-/// @param width
-/// @param height
-/// @return
-void matrix_generate(matrix_t mat) {
-	for (int x = 0; x < mat.width; x++) {
-		for (int y = 0; y < mat.height; y++) {
-			{
-				mat.data[x * mat.height + y] = (float)(rand() / RAND_MAX);
-			}
-		}
-	}
-}
-
-void matrix_free(matrix_t mat) {
-	free(mat.data);
-}
-
-/// @brief Check two matrices for equality.
-/// @param a
-/// @param b
-/// @param width
-/// @param height
-/// @return
+/// @brief Matrix equality.
 int matrix_eq(matrix_t lhs, matrix_t rhs) {
 	// size check
 	if (lhs.width != rhs.width || lhs.height != rhs.height) {
@@ -50,17 +23,12 @@ int matrix_eq(matrix_t lhs, matrix_t rhs) {
 	return 1;
 }
 
+/// @brief Utility to compute the current time in nanoseconds.
 long time_nanos() {
 	struct timespec ts;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	return ts.tv_sec * 1e9 + ts.tv_nsec;
 }
-
-typedef void (*matrix_init_t)(matrix_t *);
-typedef matrix_t (*matrix_alloc_t)(long);
-
-typedef void (*unary_procedure_t)(matrix_t, matrix_t);
-typedef void (*binary_procedure_t)(matrix_t, matrix_t, matrix_t);
 
 void benchmark_unary_procedure(long iterations, long repeats, matrix_alloc_t allocate_matrix, matrix_init_t init_matrix,
 							   unary_procedure_t baseline, unary_procedure_t procedure) {
@@ -89,9 +57,9 @@ void benchmark_unary_procedure(long iterations, long repeats, matrix_alloc_t all
 		}
 
 		// tidy up
-		matrix_free(input);
-		matrix_free(output_procedure);
-		matrix_free(output_baseline);
+		free(input.data);
+		free(output_procedure.data);
+		free(output_baseline.data);
 	}
 }
 
@@ -124,10 +92,10 @@ void benchmark_binary_procedure(long iterations, long repeats, matrix_alloc_t al
 		}
 
 		// tidy up
-		matrix_free(input_lhs);
-		matrix_free(input_rhs);
-		matrix_free(output_procedure);
-		matrix_free(output_baseline);
+		free(input_lhs.data);
+		free(input_rhs.data);
+		free(output_procedure.data);
+		free(output_baseline.data);
 	}
 }
 
@@ -137,15 +105,10 @@ matrix_t matrix_alloc_square(long iteration) {
 	return mat;
 }
 
-#ifdef __SUPPORTS_AVX
-
-#endif
-
-#ifdef __SUPPORTS_NEON
-
-#endif
-
-int main() {
-	// seed random generator
-	srand(time(NULL));
+void matrix_init_uniform(matrix_t *mat) {
+	for (int x = 0; x < mat->width; x++) {
+		for (int y = 0; y < mat->height; y++) {
+			mat->data[x * mat->height + y] = (float)(rand() / RAND_MAX);
+		}
+	}
 }

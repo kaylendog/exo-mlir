@@ -3,6 +3,7 @@ cc: clang
 cxx: clang++
 cflags: -std=c17 -O3 -Wall -Wextra
 cxxflags: -std=c++17 -O3 -Wall -Wextra
+ldflags: -lrt
 
 asflags: -O3
 
