@@ -18,11 +18,11 @@ typedef void (*unary_procedure_t)(matrix_t, matrix_t);
 typedef void (*binary_procedure_t)(matrix_t, matrix_t, matrix_t);
 
 /// @brief Benchmarks a unary procedure over a range of matrix sizes, printing the results as CSV to stdout.
-void benchmark_unary_procedure(long iterations, long repeats, matrix_alloc_t allocate_matrix, matrix_init_t init_matrix,
-							   unary_procedure_t baseline, unary_procedure_t procedure);
+void benchmark_unary_procedure(char *name, long iterations, long repeats, matrix_alloc_t allocate_matrix,
+							   matrix_init_t init_matrix, unary_procedure_t baseline, unary_procedure_t procedure);
 
 /// @brief Benchmarks a binary procedure over a range of matrix sizes, printing the results as CSV to stdout.
-void benchmark_binary_procedure(long iterations, long repeats, matrix_alloc_t allocate_matrix,
+void benchmark_binary_procedure(char *name, long iterations, long repeats, matrix_alloc_t allocate_matrix,
 								matrix_init_t init_matrix, binary_procedure_t baseline, binary_procedure_t procedure);
 
 /// @brief Generate random values for a matrix.

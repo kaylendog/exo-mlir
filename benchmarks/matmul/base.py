@@ -4,7 +4,7 @@ from exo import *
 
 
 @proc
-def sgemm(
+def matmul_base(
     M: size,
     N: size,
     K: size,

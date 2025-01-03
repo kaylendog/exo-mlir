@@ -7,7 +7,7 @@ from exo.stdlib.scheduling import *
 
 # Compute Matrix-Matrix Multiplication C += A * B
 @proc
-def SGEMM(M: size, N: size, K: size, A: f32[M, K], B: f32[K, N], C: f32[M, N]):
+def matmul_neon(M: size, N: size, K: size, A: f32[M, K], B: f32[K, N], C: f32[M, N]):
     assert M >= 1
     assert N >= 1
     assert K >= 1

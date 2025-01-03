@@ -85,7 +85,7 @@ rule cc_compile_main:
         cc=config["cc"],
         cflags=config["cflags"]
     shell:
-        "{params.cc} -Ibenchmarks -I$(dirname {input})  {params.cflags} -c -o {output} {input}"
+        "{params.cc} -Ibenchmarks -I$(dirname {input}) -I$(dirname {output})  {params.cflags} -c -o {output} {input}"
 
 rule cc_link:
     input:

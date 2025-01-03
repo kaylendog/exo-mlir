@@ -69,7 +69,8 @@
 		"typeinfo": "cpp",
 		"time.h": "c",
 		"*.inc": "c",
-		"__locale": "c"
+		"__locale": "c",
+		"nanotime.h": "c"
 	},
 	"mlir.server_path": "./submodules/llvm-project/build/bin/",
 	"git.ignoreLimitWarning": true
