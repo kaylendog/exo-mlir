@@ -2,3 +2,6 @@
 path = submodules/llvm-project
 url = https://github.com/llvm/llvm-project.git
 branch = llvmorg-19.1.4
+[submodule "submodules/exo"]
+	path = submodules/exo
+	url = https://github.com/kaylendog/exo
