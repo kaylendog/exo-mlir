@@ -3,10 +3,16 @@ name = "exolang-mlir"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
-    "exo-lang>=0.2.1",
+    "exo-lang==1.0.0",
     "pulp<2.8",
-    "snakemake>=7.32.4",
-    "xdsl>=0.23.0",
+    "snakemake>=8.26.0",
+    "xdsl>=0.25.0",
 ]
+
+[tool.uv.sources]
+exo-lang = { workspace = true }
+
+[tool.uv.workspace]
+members = ["submodules/exo"]
