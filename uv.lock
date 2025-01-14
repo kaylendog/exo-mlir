@@ -308,6 +308,8 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "coverage" },
+    { name = "filecheck" },
+    { name = "lit" },
     { name = "numpy" },
     { name = "pillow" },
     { name = "pre-commit" },
@@ -331,6 +333,8 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "coverage", specifier = "==7.6.4" },
+    { name = "filecheck", specifier = ">=1.0.1" },
+    { name = "lit", specifier = ">=18.1.8" },
     { name = "numpy", specifier = "==2.1.2" },
     { name = "pillow", specifier = "==11.0.0" },
     { name = "pre-commit", specifier = "==4.0.1" },
@@ -366,6 +370,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/03/3f/3ad5e7be13b4b8b55f4477141885ab2364f65d5f6ad5f7a9daffd634d066/fastjsonschema-2.20.0.tar.gz", hash = "sha256:3d48fc5300ee96f5d116f10fe6f28d938e6008f59a6a025c2649475b87f76a23", size = 373056 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6d/ca/086311cdfc017ec964b2436fe0c98c1f4efcb7e4c328956a22456e497655/fastjsonschema-2.20.0-py3-none-any.whl", hash = "sha256:5875f0b0fa7a0043a91e93a9b8f793bcbbba9691e7fd83dca95c28ba26d21f0a", size = 23543 },
+]
+
+[[package]]
+name = "filecheck"
+version = "1.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/93/d2/7e8bf9acf2ccb522fef4845d940b7db14782e6a36929da0ca5a4791bc2b6/filecheck-1.0.1.tar.gz", hash = "sha256:bbc3c49c190bd3af2445426a193ff0b54e1fad5a81ea7c2116c4dc36f36614f2", size = 20480 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c7/29/827b9f240e03c2cc6a2fd534ac980a12b3c7e8d8aa71c2f1039a5f91e932/filecheck-1.0.1-py3-none-any.whl", hash = "sha256:2d1a0e8784b723a4b04a655cff3af09dd159a31f4e39d477186f5547553124ab", size = 23702 },
 ]
 
 [[package]]
@@ -544,6 +557,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/00/11/b56381fa6c3f4cc5d2cf54a7dbf98ad9aa0b339ef7a601d6053538b079a7/jupyter_core-5.7.2.tar.gz", hash = "sha256:aa5f8d32bbf6b431ac830496da7392035d6f61b4f54872f15c4bd2a9c3f536d9", size = 87629 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c9/fb/108ecd1fe961941959ad0ee4e12ee7b8b1477247f30b1fdfd83ceaf017f0/jupyter_core-5.7.2-py3-none-any.whl", hash = "sha256:4f7315d2f6b4bcf2e3e7cb6e46772eba760ae459cd1f59d29eb57b0a01bd7409", size = 28965 },
+]
+
+[[package]]
+name = "lit"
+version = "18.1.8"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/47/b4/d7e210971494db7b9a9ac48ff37dfa59a8b14c773f9cf47e6bda58411c0d/lit-18.1.8.tar.gz", hash = "sha256:47c174a186941ae830f04ded76a3444600be67d5e5fb8282c3783fba671c4edb", size = 161127 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/96/06/b36f150fa7c5bcc96a31a4d19a20fddbd1d965b6f02510b57a3bb8d4b930/lit-18.1.8-py3-none-any.whl", hash = "sha256:a873ff7acd76e746368da32eb7355625e2e55a2baaab884c9cc130f2ee0300f7", size = 96365 },
 ]
 
 [[package]]

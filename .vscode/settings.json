@@ -73,5 +73,8 @@
 		"nanotime.h": "c"
 	},
 	"mlir.server_path": "./submodules/llvm-project/build/bin/",
-	"git.ignoreLimitWarning": true
+	"git.ignoreLimitWarning": true,
+	"cmake.sourceDirectory": "/home/kaylen/Projects/kaylendog/exo-mlir/submodules/llvm-project/mlir/include/mlir/Dialect/Async",
+	"python.testing.pytestEnabled": true,
+	"python.testing.pytestArgs": ["./submodules/exo/tests"]
 }
