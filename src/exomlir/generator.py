@@ -42,6 +42,9 @@ from xdsl.dialects.builtin import (
     i8,
     i16,
     i32,
+    I8,
+    I16,
+    I32,
 )
 from xdsl.dialects.func import CallOp, FuncOp, ReturnOp
 from xdsl.dialects.memref import AllocOp, DeallocOp, LoadOp, StoreOp
@@ -49,6 +52,10 @@ from xdsl.dialects.scf import ForOp, IfOp, YieldOp
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, BlockArgument, OpResult, Region, SSAValue
 from xdsl.utils.scoped_dict import ScopedDict
+
+MemRefTypeI8: TypeAlias = MemRefType[I8]
+MemRefTypeI16: TypeAlias = MemRefType[I16]
+MemRefTypeI32: TypeAlias = MemRefType[I32]
 
 MemRefTypeF16: TypeAlias = MemRefType[Float16Type]
 MemRefTypeF32: TypeAlias = MemRefType[Float32Type]
@@ -294,7 +301,13 @@ class IRGenerator:
         self.builder.insert(ForOp(lo, hi, step.result, [], Region(loop_block)))
 
     def generate_alloc_stmt(self, alloc):
-        op = AllocOp([], [], result_type=self.get_type(alloc.type))
+        type = self.get_type(alloc.type)
+
+        # TODO - how to handle allocs of non-memref types?
+        if not isinstance(type, MemRefType):
+            raise IRGeneratorError(f"Cannot allocate non-memref type {type}")
+
+        op = AllocOp([], [], result_type=type)
         self.builder.insert(op)
         self.declare_value(alloc.name, op.results[0])
         return op.results[0]
@@ -354,7 +367,7 @@ class IRGenerator:
         if type in [f16, f32, f64]:
             attr = FloatAttr(const.val, type)
         elif type in [i8, i16, i32]:
-            attr = IntegerAttr(const.val, type)
+            attr = IntegerAttr(IntAttr(const.val), type)
         elif type == i1:
             attr = BoolAttr(const.val, i1)
         else:
@@ -513,6 +526,12 @@ class IRGenerator:
                 return MemRefTypeF32(f32, self.get_shape(t))
             elif inner == f64:
                 return MemRefTypeF64(f64, self.get_shape(t))
+            elif inner == i8:
+                return MemRefTypeI8(i8, self.get_shape(t))
+            elif inner == i16:
+                return MemRefTypeI16(i16, self.get_shape(t))
+            elif inner == i32:
+                return MemRefTypeI32(i32, self.get_shape(t))
             else:
                 raise IRGeneratorError(f"Unknown tensor type '{t}'")
         else:
