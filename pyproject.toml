@@ -1,18 +1,24 @@
 [project]
-name = "exolang-mlir"
+name = "exo-mlir"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = "==3.11.*"
 dependencies = [
+    "argparse>=1.4.0",
     "exo-lang==1.0.0",
     "pulp<2.8",
     "snakemake>=8.26.0",
     "xdsl>=0.25.0",
 ]
+scripts = { exo-mlir = "exomlir.main:main" }
 
-[tool.uv.sources]
-exo-lang = { workspace = true }
+[dependency-groups]
+dev = [
+    "filecheck>=1.0.1",
+    "lit>=18.1.8",
+    "pytest>=8.3.4",
+]
 
-[tool.uv.workspace]
-members = ["submodules/exo"]
+[tool.uv]
+package = true
