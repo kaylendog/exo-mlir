@@ -144,6 +144,9 @@ class IRGenerator:
         return self.symbol_table[sym.name()]
 
     def cast_to_index(self, value: SSAValue) -> SSAValue:
+        # must not cast if already an index
+        if isinstance(value.type, IndexType):
+            return value
         cast = IndexCastOp(value, IndexType())
         self.builder.insert(cast)
         return cast.result
@@ -311,10 +314,10 @@ class IRGenerator:
     #     rhs = self.generate_expr(window.rhs)
     #     self.builder.insert(WindowStmtOp(self.symbol(window.name), rhs))
 
-    def generate_expr_list(self, exprs) -> list[OpResult]:
+    def generate_expr_list(self, exprs) -> list[OpResult | SSAValue]:
         return [self.generate_expr(expr) for expr in exprs]
 
-    def generate_expr(self, expr) -> OpResult:
+    def generate_expr(self, expr) -> OpResult | SSAValue:
         if isinstance(expr, LoopIR.Read):
             return self.generate_read_expr(expr)
         elif isinstance(expr, LoopIR.Const):
@@ -331,12 +334,13 @@ class IRGenerator:
         operand = self.get_sym(read.name)
 
         # if operand is a tensor, we need to load from memory
-        if operand.type in [MemRefTypeF16, MemRefTypeF32, MemRefTypeF64]:
+        if isinstance(operand.type, MemRefType):
             read = LoadOp(
                 operands=[self.get_sym(read.name), idx],
                 result_types=[self.get_type(read.type)],
             )
             self.builder.insert(read)
+
             return read.res
 
         # otherwise, we can just return the operand
@@ -469,13 +473,13 @@ class IRGenerator:
         return extern.res
 
     def generate_window_expr(self, window):
-        pass
+        raise NotImplementedError()
 
     def generate_stride_expr(self, stride):
-        pass
+        raise NotImplementedError()
 
     def generate_read_config_expr(self, read_config):
-        pass
+        raise NotImplementedError()
 
     def get_type(self, t):
         # mlir
@@ -521,7 +525,7 @@ class IRGenerator:
             if isinstance(expr, LoopIR.Const):
                 return IntAttr(expr.val)
             elif isinstance(expr, LoopIR.Read):
-                raise NotImplementedError("Dynamic shapes not supported")
+                return IntAttr(-1)
             else:
                 raise IRGeneratorError(f"Invalid shape argument {expr}")
 
