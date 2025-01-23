@@ -2,34 +2,12 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "Compile matmul base with exocc",
+			"name": "Compile current file with exo-mlir",
 			"type": "debugpy",
 			"request": "launch",
-			"program": "${workspaceFolder}/submodules/exo/src/exo/main.py",
+			"program": "${workspaceFolder}/src/exomlir/main.py",
 			"console": "integratedTerminal",
-			"args": [
-				"${workspaceFolder}/benchmarks/matmul/base.py",
-				"-t",
-				"mlir",
-				"-o",
-				"-"
-			]
-		},
-		{
-			"name": "Compile current file with exocc",
-			"type": "debugpy",
-			"request": "launch",
-			"program": "${workspaceFolder}/submodules/exo/src/exo/main.py",
-			"console": "integratedTerminal",
-			"args": ["${file}", "-t", "mlir", "-o", "-"]
-		},
-		{
-			"name": "Test current file with Pytest",
-			"type": "debugpy",
-			"request": "launch",
-			"program": "pytest",
-			"console": "integratedTerminal",
-			"args": ["${file}", "-t", "pytest"]
+			"args": ["${file}", "-o", "-"]
 		}
 	]
 }

@@ -5,26 +5,34 @@ set -euxo pipefail
 # install llvm
 git submodule update --init --recursive
 
-# llvm build subshell
-(
-    cd submodules/llvm-project
-    mkdir -p build
-    cd build
+# skip llvm build if already built
+if [ -d submodules/llvm-project/build ]; then
+    echo "llvm already built"
+else
+    echo "building llvm"
+    # llvm build subshell
+    (
+        cd submodules/llvm-project
+        mkdir -p build
+        cd build
 
-    # configure llvm build
-    cmake -G Ninja ../llvm \
-        -DLLVM_ENABLE_PROJECTS=mlir \
-        -DLLVM_BUILD_EXAMPLES=ON \
-        -DLLVM_TARGETS_TO_BUILD="Native;NVPTX;AMDGPU" \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DLLVM_ENABLE_ASSERTIONS=ON \
-        -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLLVM_ENABLE_LLD=ON \
-        -DLLVM_CCACHE_BUILD=ON
+        # configure llvm build
+        cmake -G Ninja ../llvm \
+            -DLLVM_ENABLE_PROJECTS=mlir \
+            -DLLVM_BUILD_EXAMPLES=ON \
+            -DLLVM_TARGETS_TO_BUILD="Native;NVPTX;AMDGPU" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLLVM_ENABLE_ASSERTIONS=ON \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DLLVM_ENABLE_LLD=ON \
+            -DLLVM_CCACHE_BUILD=ON
 
-    # build llvm
-    cmake --build . --target check-mlir
+        # build llvm
+        cmake --build . --target check-mlir
 
-)
+    )
+fi
 
 # export llvm bin
 export PATH=$PWD/submodules/llvm-project/build/bin:$PATH

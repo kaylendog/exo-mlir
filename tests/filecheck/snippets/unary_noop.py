@@ -5,7 +5,7 @@ from exo import *
 
 
 # CHECK: builtin.module {
-# CHECK-NEXT: func.func @unary_noop(%0 : memref<16xf32>) {
+# CHECK-NEXT: func.func @unary_noop(%0 : memref<16xf32, strided<[1]>>) {
 # CHECK-NEXT:   func.return
 # CHECK-NEXT: }
 @proc

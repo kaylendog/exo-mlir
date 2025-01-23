@@ -5,10 +5,10 @@ from exo import *
 
 
 # CHECK: builtin.module {
-# CHECK-NEXT: func.func @preserves_args(%0 : memref<16xf32>, %1 : i32) {
+# CHECK-NEXT: func.func @preserves_args(%0 : memref<16xf32, strided<[1]>>, %1 : i32) {
 # CHECK-NEXT:   %2 = arith.index_cast %1 : i32 to index
 # CHECK-NEXT:   %3 = arith.constant 0.000000e+00 : f32
-# CHECK-NEXT:   memref.store %3, %0[%2] : memref<16xf32>
+# CHECK-NEXT:   memref.store %3, %0[%2] : memref<16xf32, strided<[1]>>
 # CHECK-NEXT:   func.return
 # CHECK-NEXT: }
 @proc

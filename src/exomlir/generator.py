@@ -35,6 +35,9 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     MemRefType,
     ModuleOp,
+    StridedLayoutAttr,
+    StringAttr,
+    DenseIntOrFPElementsAttr,
     f16,
     f32,
     f64,
@@ -47,7 +50,14 @@ from xdsl.dialects.builtin import (
     I32,
 )
 from xdsl.dialects.func import CallOp, FuncOp, ReturnOp
-from xdsl.dialects.memref import AllocOp, DeallocOp, LoadOp, StoreOp
+from xdsl.dialects.memref import (
+    AllocOp,
+    DeallocOp,
+    LoadOp,
+    StoreOp,
+    GlobalOp,
+    GetGlobalOp,
+)
 from xdsl.dialects.scf import ForOp, IfOp, YieldOp
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, BlockArgument, OpResult, Region, SSAValue
@@ -303,14 +313,25 @@ class IRGenerator:
     def generate_alloc_stmt(self, alloc):
         type = self.get_type(alloc.type)
 
-        # TODO - how to handle allocs of non-memref types?
-        if not isinstance(type, MemRefType):
-            raise IRGeneratorError(f"Cannot allocate non-memref type {type}")
+        if isinstance(type, MemRefType):
+            op = AllocOp([], [], result_type=type)
+        else:
+            # alloc the global and immediately load it
+            ref_type = self.convert_scalar_type_to_memref_type(type)
+            glbl = GlobalOp(
+                properties={
+                    "sym_name": StringAttr(alloc.name.name()),
+                    "sym_visibility": StringAttr("private"),
+                    "type": ref_type,
+                    "alignment": IntegerAttr(self.get_alignment(type), 64),
+                    "initial_value": self.get_scalar_default_memref_value(type),
+                }
+            )
+            self.builder.insert(glbl)
+            op = GetGlobalOp(alloc.name.name(), return_type=ref_type)
 
-        op = AllocOp([], [], result_type=type)
-        self.builder.insert(op)
         self.declare_value(alloc.name, op.results[0])
-        return op.results[0]
+        self.builder.insert(op)
 
     def generate_free_stmt(self, free):
         self.builder.insert(
@@ -520,20 +541,29 @@ class IRGenerator:
             return i1
         elif isinstance(t, T.Tensor):
             inner = self.get_type(t.type)
+
+            if inner not in [f16, f32, f64, i8, i16, i32]:
+                raise IRGeneratorError(f"Unknown tensor inner type '{inner}'")
+
+            # compute shape and strides
+            shape = self.get_shape(t)
+            strides = StridedLayoutAttr([IntAttr(1) for _ in shape], IntAttr(0))
+
             if inner == f16:
-                return MemRefTypeF16(f16, self.get_shape(t))
+                return MemRefTypeF16(f16, shape, strides)
             elif inner == f32:
-                return MemRefTypeF32(f32, self.get_shape(t))
+                return MemRefTypeF32(f32, shape, strides)
             elif inner == f64:
-                return MemRefTypeF64(f64, self.get_shape(t))
+                return MemRefTypeF64(f64, shape, strides)
             elif inner == i8:
-                return MemRefTypeI8(i8, self.get_shape(t))
+                return MemRefTypeI8(i8, shape, strides)
             elif inner == i16:
-                return MemRefTypeI16(i16, self.get_shape(t))
+                return MemRefTypeI16(i16, shape, strides)
             elif inner == i32:
-                return MemRefTypeI32(i32, self.get_shape(t))
+                return MemRefTypeI32(i32, shape, strides)
             else:
-                raise IRGeneratorError(f"Unknown tensor type '{t}'")
+                raise IRGeneratorError("Entered unreachable code")
+
         else:
             raise IRGeneratorError(f"Unknown type '{t}'")
 
@@ -549,3 +579,41 @@ class IRGenerator:
                 raise IRGeneratorError(f"Invalid shape argument {expr}")
 
         return [attr_from_expr(expr) for expr in type.shape()]
+
+    def get_alignment(self, type):
+        # TODO: check that these are correct
+        if type in [f16, f32, f64]:
+            return 4
+        elif type in [i8, i16, i32]:
+            return 1
+        else:
+            raise IRGeneratorError(
+                f"Type '{type.name}' does not have a known alignment"
+            )
+
+    def convert_scalar_type_to_memref_type(self, type):
+        if type == f16:
+            return MemRefTypeF16(f16, [IntAttr(1)])
+        elif type == f32:
+            return MemRefTypeF32(f32, [IntAttr(1)])
+        elif type == f64:
+            return MemRefTypeF64(f64, [IntAttr(1)])
+        elif type == i8:
+            return MemRefTypeI8(i8, [IntAttr(1)])
+        elif type == i16:
+            return MemRefTypeI16(i16, [IntAttr(1)])
+        elif type == i32:
+            return MemRefTypeI32(i32, [IntAttr(1)])
+        else:
+            raise IRGeneratorError(f"Bad scalar type '{type.name}'")
+
+    def get_scalar_default_memref_value(self, type):
+        memref_type = self.convert_scalar_type_to_memref_type(type)
+        if type in [f16, f32, f64]:
+            return DenseIntOrFPElementsAttr.create_dense_float(
+                memref_type, [FloatAttr(0.0)]
+            )
+        elif type in [i8, i16, i32]:
+            return DenseIntOrFPElementsAttr.create_dense_int(memref_type, [IntAttr(0)])
+        else:
+            raise IRGeneratorError(f"Bad scalar type '{type.name}'")
