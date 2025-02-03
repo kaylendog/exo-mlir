@@ -144,9 +144,6 @@ name = "datrie"
 version = "0.8.2"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/9d/fe/db74bd405d515f06657f11ad529878fd389576dca4812bea6f98d9b31574/datrie-0.8.2.tar.gz", hash = "sha256:525b08f638d5cf6115df6ccd818e5a01298cd230b2dac91c8ff2e6499d18765d", size = 63278 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/44/02/53f0cf0bf0cd629ba6c2cc13f2f9db24323459e9c19463783d890a540a96/datrie-0.8.2-pp273-pypy_73-win32.whl", hash = "sha256:b07bd5fdfc3399a6dab86d6e35c72b1dbd598e80c97509c7c7518ab8774d3fda", size = 91292 },
-]
 
 [[package]]
 name = "docutils"
@@ -207,8 +204,8 @@ requires-dist = [
     { name = "argparse", specifier = ">=1.4.0" },
     { name = "exo-lang", specifier = "==1.0.0" },
     { name = "pulp", specifier = "<2.8" },
-    { name = "snakemake", specifier = ">=8.26.0" },
-    { name = "xdsl", specifier = ">=0.25.0" },
+    { name = "snakemake", specifier = ">=8.27.0" },
+    { name = "xdsl", git = "https://github.com/kaylendog/xdsl?rev=b1f374bcfa6bf9207bbdbfc0879a65cc520048e8" },
 ]
 
 [package.metadata.requires-dev]
@@ -641,7 +638,7 @@ wheels = [
 
 [[package]]
 name = "snakemake"
-version = "8.26.0"
+version = "8.27.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "appdirs" },
@@ -673,9 +670,9 @@ dependencies = [
     { name = "wrapt" },
     { name = "yte" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/03/95/b705e4a7fb1787d9829f7e29b32f4d8cc253bfb8c321d67cc38ce765dcb0/snakemake-8.26.0.tar.gz", hash = "sha256:b52390cd6c3b591e5c4a0977df93d8f25a4a38a5c43dee4c7e2093393cb1f053", size = 4734829 }
+sdist = { url = "https://files.pythonhosted.org/packages/14/0b/b0e763613229a586d0b4b12df2a516a0a0be8ba324713d85ae8eea3b54b0/snakemake-8.27.1.tar.gz", hash = "sha256:17fb3c80618dae88c236766a0fe45924119351da9bdc9aa2e8f11dbcfd95aded", size = 4735649 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d7/8b/300fa045f7825677f9119e88b76de1734921a3992d018dfeed0e0e07534c/snakemake-8.26.0-py3-none-any.whl", hash = "sha256:8ccc1384b1522e9fea3aaf63433204252eedca9efb68199718c132abec7f2d60", size = 1007849 },
+    { url = "https://files.pythonhosted.org/packages/b7/7c/53eaebfabe89bb2c14a611f165b79f279b27fa837c59b181392dd2f6630f/snakemake-8.27.1-py3-none-any.whl", hash = "sha256:873e6014cb2418db14a6bdf02da4113488095c9cff179407b236ac7976143864", size = 1008072 },
 ]
 
 [[package]]
@@ -807,16 +804,12 @@ wheels = [
 
 [[package]]
 name = "xdsl"
-version = "0.25.0"
-source = { registry = "https://pypi.org/simple" }
+version = "0+untagged.3244.gb1f374b"
+source = { git = "https://github.com/kaylendog/xdsl?rev=b1f374bcfa6bf9207bbdbfc0879a65cc520048e8#b1f374bcfa6bf9207bbdbfc0879a65cc520048e8" }
 dependencies = [
     { name = "immutabledict" },
     { name = "ordered-set" },
     { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/bd/c5/f1ed3aa42f36de769b978e6a284ff5a89f1afbb2c15baa6b4345c5c7f4cf/xdsl-0.25.0.tar.gz", hash = "sha256:0ecfc487d3fdd57ffc11cb8418ca9afaa6ff7e7e7e1879423ed2388d6815d78f", size = 726367 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d5/fd/2779c282d32b85e21f2d1fbfd5f018c8730db4fcbd2af55024bafd8f55d4/xdsl-0.25.0-py3-none-any.whl", hash = "sha256:a4b1e12544561e3fc8fe86fb3769debba34f5e62cba6f0c6accf4ffaeb112c67", size = 813223 },
 ]
 
 [[package]]

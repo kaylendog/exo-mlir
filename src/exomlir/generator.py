@@ -61,6 +61,7 @@ from xdsl.dialects.memref import (
 from xdsl.dialects.scf import ForOp, IfOp, YieldOp
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, BlockArgument, OpResult, Region, SSAValue
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.scoped_dict import ScopedDict
 
 MemRefTypeI8: TypeAlias = MemRefType[I8]
@@ -105,7 +106,9 @@ class IRGenerator:
 
     def __init__(self):
         self.module = ModuleOp([])
-        self.builder = Builder.at_end(self.module.body.blocks[0])
+        self.builder = Builder(
+            insertion_point=InsertPoint.at_end(self.module.body.blocks[0])
+        )
 
     def with_empty_scope(self):
         """
@@ -179,7 +182,7 @@ class IRGenerator:
 
         # initialise function block
         block = Block(arg_types=[self.get_type(arg.type) for arg in procedure.args])
-        self.builder = Builder.at_end(block)
+        self.builder = Builder(insertion_point=InsertPoint.at_end(block))
 
         # add arguments to symbol table
         for idx, (proc_arg, block_arg) in enumerate(zip(procedure.args, block.args)):
@@ -294,7 +297,7 @@ class IRGenerator:
             # TODO: this should be inferred from lo and hi
             arg_types=[IndexType()],
         )
-        self.builder = Builder.at_end(loop_block)
+        self.builder = Builder(insertion_point=InsertPoint.at_end(loop_block))
         self.symbol_table = ScopedDict(parent_scope)
 
         # add loop variable to symbol table

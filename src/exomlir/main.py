@@ -42,6 +42,10 @@ def main():
         compile_path(srcs[0], dest)
         return
 
+    # check if output has no suffix - assumes a directory, we make it if it doesn't exist
+    if args.output and not Path(args.output).suffix:
+        os.makedirs(args.output, exist_ok=True)
+
     # check non-directory output
     if not args.output or not os.path.isdir(args.output) and args.output != "-":
         parser.error("Must provide a directory output for multiple source files.")
