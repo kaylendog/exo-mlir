@@ -46,7 +46,7 @@ int main() {
 							   proxy_matmul_avx2);
 #endif
 #ifdef __TARGET_neon
-	benchmark_binary_procedure("matmul_neon", 10, 8, matrix_alloc_square, matrix_init_uniform, matmul, matmul_neon,
+	benchmark_binary_procedure("matmul_neon", 8, 8, matrix_alloc_square, matrix_init_uniform, matmul,
 							   proxy_matmul_neon);
 #endif
 

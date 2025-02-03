@@ -21,7 +21,7 @@ int matrix_eq(matrix_t lhs, matrix_t rhs) {
 	// element-wise comparison
 	for (int x = 0; x < lhs.width; x++) {
 		for (int y = 0; y < lhs.height; y++) {
-			if (lhs.data[x * lhs.height + y] != rhs.data[x * rhs.height + y]) {
+			if (fabs(lhs.data[x * lhs.height + y] - rhs.data[x * rhs.height + y]) > FLT_EPSILON) {
 				return 0;
 			}
 		}

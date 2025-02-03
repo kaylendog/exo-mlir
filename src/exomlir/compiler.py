@@ -98,9 +98,12 @@ def compile_path(src: Path, dest: Path | None = None):
 
     logger.info(f"Compile[{src}] Destination: {dest}")
 
-    # load user code and get procedures from exo - procedures tend to erase stdout, so we save it
+    # load user code and get procedures from exo
+    # procedures tend to do a lot of printing, so we suppress stdout temporarily
     stdout = sys.stdout
+    sys.stdout = os.open(os.devnull, os.O_RDWR)
     library = get_procs_from_module(load_user_code(src))  # type: list[Procedure]
+    sys.stdout.close()
     sys.stdout = stdout
 
     logger.info(f"Compile[{src}] Loaded {len(library)} procedure(s) from source")

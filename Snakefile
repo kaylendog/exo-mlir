@@ -177,6 +177,14 @@ rule exomlir_benchmark:
     shell:
         "{input} > {output}"
 
+rule exocc:
+    input:
+        expand("build/benchmarks/exocc/{kernel}/{variant}.csv", kernel=KERNELS, variant=SUPPORTED_EXO_VARIANTS)
+
+rule exomlir:
+    input:
+        expand("build/benchmarks/exomlir/{kernel}/{variant}.csv", kernel=KERNELS, variant=SUPPORTED_EXO_VARIANTS)
+
 rule all:
     input:
         expand("build/benchmarks/exocc/{kernel}/{variant}.csv", kernel=KERNELS, variant=SUPPORTED_EXO_VARIANTS),

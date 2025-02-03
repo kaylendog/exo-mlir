@@ -162,7 +162,7 @@ def finish_sgemm_tiled(p=sgemm_tiled):
 
 sgemm_tiled = finish_sgemm_tiled()
 
-sgemm_exo = rename(sgemm_tiled, "sgemm_exo")
-print(sgemm_exo)
+matmul_neon = rename(sgemm_tiled, "matmul_neon")
+print(matmul_neon)
 
-__all__ = ["sgemm_exo"]
+__all__ = ["matmul_neon"]
