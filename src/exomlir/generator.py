@@ -57,10 +57,11 @@ from xdsl.dialects.memref import (
     StoreOp,
     GlobalOp,
     GetGlobalOp,
+    SubviewOp,
 )
 from xdsl.dialects.scf import ForOp, IfOp, YieldOp
 from xdsl.dialects.test import TestOp
-from xdsl.ir import Block, BlockArgument, OpResult, Region, SSAValue
+from xdsl.ir import Block, BlockArgument, OpResult, Region, SSAValue, Attribute
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.scoped_dict import ScopedDict
 
@@ -171,11 +172,32 @@ class IRGenerator:
         self.builder.insert(cast)
         return cast.result
 
+    def cast_to(self, value: SSAValue, type: Attribute) -> SSAValue:
+        # must not cast if already an index
+        if value.type is type:
+            return value
+
+        if isinstance(type, IndexType) or isinstance(value.type, IndexType):
+            cast = IndexCastOp(value, type)
+        else:
+            raise IRGeneratorError(f"Unknown cast from {value.type} to {type}")
+
+        self.builder.insert(cast)
+        return cast.result
+
     def generate_procedure(self, procedure):
         if procedure.name in self.seen_procs:
             return
 
         self.seen_procs.add(procedure.name)
+
+        input_types = [self.get_type(arg.type) for arg in procedure.args]
+        func_type = FunctionType.from_lists(input_types, [])
+
+        # generate private funcs for instruction procedures
+        if procedure.instr is not None:
+            self.builder.insert(FuncOp.external(procedure.name, input_types, []))
+            return
 
         parent_builder = self.builder
         self.symbol_table = ScopedDict[str, SSAValue]()
@@ -185,7 +207,7 @@ class IRGenerator:
         self.builder = Builder(insertion_point=InsertPoint.at_end(block))
 
         # add arguments to symbol table
-        for idx, (proc_arg, block_arg) in enumerate(zip(procedure.args, block.args)):
+        for proc_arg, block_arg in zip(procedure.args, block.args):
             self.declare_arg(proc_arg.name, block_arg)
 
         # generate function body
@@ -195,9 +217,6 @@ class IRGenerator:
         # cleanup
         self.symbol_table = None
         self.builder = parent_builder
-
-        input_types = [self.get_type(arg.type) for arg in procedure.args]
-        func_type = FunctionType.from_lists(input_types, [])
 
         # insert procedure into module
         self.builder.insert(FuncOp(procedure.name, func_type, Region(block)))
@@ -226,8 +245,7 @@ class IRGenerator:
         elif isinstance(stmt, LoopIR.Free):
             self.generate_free_stmt(stmt)
         elif isinstance(stmt, LoopIR.Call):
-            # TODO: call stmts are not supported yet
-            pass
+            self.generate_call_stmt(stmt)
         elif isinstance(stmt, LoopIR.Window):
             self.generate_window_stmt(stmt)
         else:
@@ -342,7 +360,6 @@ class IRGenerator:
         )
 
     def generate_call_stmt(self, call):
-        # TODO: procedure generation should be top-level, then call should simply use a SymRefAttr to refer to the procedure
         self.generate_procedure(call.f)
         args = [self.generate_expr(arg) for arg in call.args]
         self.builder.insert(CallOp(call.f.name, args, []))
@@ -361,8 +378,12 @@ class IRGenerator:
             return self.generate_const_expr(expr)
         elif isinstance(expr, LoopIR.BinOp):
             return self.generate_binop_expr(expr)
+        elif isinstance(expr, LoopIR.WindowExpr):
+            return self.generate_window_expr(expr)
         else:
-            raise IRGeneratorError(f"Unknown expression {expr}")
+            raise IRGeneratorError(
+                f"Unknown expression type '{type(expr)}' for expression '{expr}'"
+            )
 
     def generate_read_expr(self, read):
         idx = self.generate_expr_list(read.idx)
@@ -449,9 +470,9 @@ class IRGenerator:
         return binop.result
 
     def generate_binop_expr_int(self, binop):
-        lhs = self.generate_expr(binop.lhs)
-        rhs = self.generate_expr(binop.rhs)
         type = self.get_type(binop.type)
+        lhs = self.cast_to(self.generate_expr(binop.lhs), type)
+        rhs = self.cast_to(self.generate_expr(binop.rhs), type)
 
         if binop.op == "+":
             binop = AddiOp(lhs, rhs, result_type=type)
@@ -510,10 +531,40 @@ class IRGenerator:
         return extern.res
 
     def generate_window_expr(self, window):
-        raise NotImplementedError()
+        # need 1 for fixed-size window indexes
+        one = ConstantOp(IntegerAttr(1, IndexType()))
+        self.builder.insert(one)
+
+        idx = [self.generate_w_access(w_access) for w_access in window.idx]
+
+        op = SubviewOp.get(
+            self.get_sym(window.name),
+            # offset is lower bound
+            [idx[0] for idx in idx],
+            # size for pt accesses = 1
+            # size for interval accesses = hi - lo
+            [one if len(idx) == 1 else idx[1] for idx in idx],
+            [one for _ in idx],
+            self.get_type(window.type.as_tensor),
+        )
+
+        self.builder.insert(op)
+        return op.result
+
+    def generate_w_access(self, w_access):
+        if isinstance(w_access, LoopIR.Point):
+            return (self.cast_to_index(self.generate_expr(w_access.pt)),)
+        elif isinstance(w_access, LoopIR.Interval):
+            lo = self.cast_to_index(self.generate_expr(w_access.lo))
+            hi = self.cast_to_index(self.generate_expr(w_access.hi))
+
+            size_op = SubiOp(hi, lo, result_type=lo.type)
+            self.builder.insert(size_op)
+
+            return lo, size_op.result
 
     def generate_stride_expr(self, stride):
-        raise NotImplementedError()
+        raise NotImplementedError("stride expressions are not yet supported")
 
     def generate_read_config_expr(self, read_config):
         raise NotImplementedError()
