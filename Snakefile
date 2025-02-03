@@ -4,7 +4,10 @@ import subprocess
 configfile: "config.yaml"
 
 def supports_variant(variant):
-    return subprocess.run(["grep", variant, "/proc/cpuinfo"], stdout=subprocess.PIPE).returncode == 0 or variant == "base"
+    if platform.system() == "Darwin":
+        return any(line.endswith(": 1") for line in subprocess.run(["sysctl", "-a"], stdout=subprocess.PIPE).stdout.decode().splitlines() if variant in line) or variant == "base"
+    else:
+        return subprocess.run(["grep", variant, "/proc/cpuinfo"], stdout=subprocess.PIPE).returncode == 0 or variant == "base"
 
 KERNELS = [
     "matmul"

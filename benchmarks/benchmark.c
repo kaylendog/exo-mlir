@@ -45,7 +45,7 @@ void benchmark_print_stats(long *deltas, long size) {
 	double mean = acc / size;
 	double stddev = sqrt((acc_squared / size) - (mean * mean));
 
-	printf("%ld,%ld,%ld,%f,%f,%f\n", size, min, max, mean, stddev);
+	printf("%ld,%ld,%ld,%f,%f\n", size, min, max, mean, stddev);
 }
 
 void benchmark_unary_procedure(char *name, long iterations, long repeats, matrix_alloc_t allocate_matrix,
