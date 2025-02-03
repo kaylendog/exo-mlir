@@ -21,14 +21,14 @@ void proxy_matmul_base(matrix_t lhs, matrix_t rhs, matrix_t output) {
 }
 #endif
 
-#ifdef _TARGET_avx2
+#ifdef __TARGET_avx2_DISABLED
 #include <avx2.h>
 void proxy_matmul_avx2(matrix_t lhs, matrix_t rhs, matrix_t output) {
 	matmul_avx2(NULL, lhs.width, rhs.height, lhs.height, output.data, lhs.data, rhs.data);
 }
 #endif
 
-#ifdef _TARGET_neon
+#ifdef __TARGET_neon
 #include <neon.h>
 void proxy_matmul_neon(matrix_t lhs, matrix_t rhs, matrix_t output) {
 	matmul_neon(NULL, lhs.width, rhs.height, lhs.height, output.data, lhs.data, rhs.data);
@@ -41,11 +41,11 @@ int main() {
 							   proxy_matmul_base);
 #endif
 
-#ifdef _TARGET_AVX2
+#ifdef __TARGET_avx2_DISABLED
 	benchmark_binary_procedure("matmul_avx2", 8, 8, matrix_alloc_square, matrix_init_uniform, matmul,
 							   proxy_matmul_avx2);
 #endif
-#ifdef _TARGET_NEON
+#ifdef __TARGET_neon
 	benchmark_binary_procedure("matmul_neon", 10, 8, matrix_alloc_square, matrix_init_uniform, matmul, matmul_neon,
 							   proxy_matmul_neon);
 #endif

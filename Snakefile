@@ -102,6 +102,79 @@ rule exocc_benchmark:
     shell:
         "{input} > {output}"
 
+rule exomlir_compile:
+    input:
+        "benchmarks/{kernel}/{variant}.py"
+    output:
+        "build/benchmarks/exomlir/{kernel}/{variant}.mlir",
+     # exclude main
+    wildcard_constraints:
+        variant="|".join(EXO_VARIANTS)
+    shell:
+        "exo-mlir -o build/benchmarks/exomlir/{wildcards.kernel} {input}"
+
+rule exomlir_lower_mlir:
+    input:
+        "build/benchmarks/exomlir/{kernel}/{variant}.mlir"
+    output:
+        "build/benchmarks/exomlir/{kernel}/{variant}.mlir.lowered"
+     # exclude main
+    wildcard_constraints:
+        variant="|".join(EXO_VARIANTS)
+    shell:
+        "mlir-opt {input} -convert-scf-to-cf -canonicalize -cse | xdsl-opt -p convert-memref-to-ptr{{lower_func=true}},convert-ptr-to-llvm | mlir-opt -convert-func-to-llvm -convert-arith-to-llvm -convert-index-to-llvm > {output}"
+
+rule exomlir_lower_llvmir:
+    input:
+        "build/benchmarks/exomlir/{kernel}/{variant}.mlir.lowered",
+    output:
+        "build/benchmarks/exomlir/{kernel}/{variant}.ll",
+     # exclude main
+    wildcard_constraints:
+        variant="|".join(EXO_VARIANTS)
+    shell:
+        "mlir-translate {input} -mlir-to-llvmir > {output}"
+
+rule exomlir_assemble:
+    input:
+        "build/benchmarks/exomlir/{kernel}/{variant}.ll"
+    output:
+        "build/benchmarks/exomlir/{kernel}/{variant}.o"
+    # exclude main
+    wildcard_constraints:
+        variant="|".join(EXO_VARIANTS)
+    params:
+        cc=config["cc"],
+        asflags=config["asflags"]
+    shell:
+        "{params.cc} {params.asflags} -c -o {output} {input}"
+
+rule exomlir_cc_compile_main:
+    input:
+        "benchmarks/{kernel}/exomlir.c",
+        "build/benchmarks/benchmark.o",
+        "build/benchmarks/exomlir/{kernel}/{variant}.o"
+    output:
+        "build/benchmarks/exomlir/{kernel}/{variant}.x"
+    # exclude main
+    wildcard_constraints:
+        variant="|".join(EXO_VARIANTS)
+    params:
+        cc=config["cc"],
+        cflags=config["cflags"],
+        ldflags=config["ldflags"]
+    shell:
+        "{params.cc} -Ibenchmarks -I$(dirname {output}) {params.cflags} -o {output} {input} {params.ldflags} -D__TARGET_{wildcards.variant}"
+
+rule exomlir_benchmark:
+    input:
+        "build/benchmarks/exomlir/{kernel}/{variant}.x"
+    output:
+        "build/benchmarks/exomlir/{kernel}/{variant}.csv"
+    shell:
+        "{input} > {output}"
+
 rule all:
     input:
-        expand("build/benchmarks/exocc/{kernel}/{variant}.csv", kernel=KERNELS, variant=SUPPORTED_EXO_VARIANTS)
+        expand("build/benchmarks/exocc/{kernel}/{variant}.csv", kernel=KERNELS, variant=SUPPORTED_EXO_VARIANTS),
+        expand("build/benchmarks/exomlir/{kernel}/{variant}.csv", kernel=KERNELS, variant=SUPPORTED_EXO_VARIANTS)

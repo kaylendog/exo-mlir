@@ -70,7 +70,8 @@
 		"time.h": "c",
 		"*.inc": "c",
 		"__locale": "c",
-		"nanotime.h": "c"
+		"nanotime.h": "c",
+		"base.h": "c"
 	},
 	"mlir.server_path": "./submodules/llvm-project/build/bin/",
 	"git.ignoreLimitWarning": true,
