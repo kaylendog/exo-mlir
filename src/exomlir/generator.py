@@ -285,13 +285,13 @@ class IRGenerator:
 
         # construct true_block
         true_block = Block()
-        self.builder = Builder.at_end(true_block)
+        self.builder = Builder(insertion_point=InsertPoint.at_end(true_block))
         self.generate_stmt_list(if_stmt.body)
         self.builder.insert(YieldOp())
 
         # construct false_block
         false_block = Block()
-        self.builder = Builder.at_end(false_block)
+        self.builder = Builder(insertion_point=InsertPoint.at_end(false_block))
         self.generate_stmt_list(if_stmt.orelse)
         self.builder.insert(YieldOp())
 
