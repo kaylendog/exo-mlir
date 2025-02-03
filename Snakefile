@@ -20,40 +20,13 @@ SUPPORTED_EXO_VARIANTS = [
     variant for variant in EXO_VARIANTS if supports_variant(variant)
 ]
 
-rule exocc_compile:
-    input:
-        "benchmarks/{kernel}/{variant}.py"
-    output:
-        "build/benchmarks/{kernel}/{variant}.c",
-        "build/benchmarks/{kernel}/{variant}.h"
-     # exclude main
-    wildcard_constraints:
-        variant="|".join(EXO_VARIANTS)
-    shell:
-        "exocc -o build/benchmarks/{wildcards.kernel} --stem {wildcards.variant} {input}"
-
-rule cc_compile:
-    input:
-        c="build/benchmarks/{kernel}/{variant}.c",
-        h="build/benchmarks/{kernel}/{variant}.h"
-    output:
-        "build/benchmarks/{kernel}/{variant}.S"
-     # exclude main
-    wildcard_constraints:
-        variant="|".join(EXO_VARIANTS)
-    params:
-        cc=config["cc"],
-        include=lambda wildcards: "build/benchmarks/{wildcards.kernel}",
-        cflags=config["cflags"],
-        vflags=lambda wildcards: config["vflags"][wildcards.variant]
-    shell:
-        "{params.cc} -I{params.include} {params.cflags} {params.vflags} -S -o {output} {input.c}"
+print("Supported variants: ", SUPPORTED_EXO_VARIANTS)
 
 rule cc_assemble:
     input:
-        "build/benchmarks/{kernel}/{variant}.S"
+        "build/benchmarks/{compiler}/{kernel}/{variant}.S"
     output:
-        "build/benchmarks/{kernel}/{variant}.o"
+        "build/benchmarks/{compiler}/{kernel}/{variant}.o"
     # exclude main
     wildcard_constraints:
         variant="|".join(EXO_VARIANTS)
@@ -63,50 +36,72 @@ rule cc_assemble:
     shell:
         "{params.cc} {params.asflags} -c -o {output} {input}"
 
-rule cc_compile_benchmark:
+rule benchmark_compile:
     input:
-        c="benchmarks/benchmark.c",
-        h="benchmarks/benchmark.h"
+        "benchmarks/benchmark.c",
     output:
         "build/benchmarks/benchmark.o"
+    params:
+        cc=config["cc"],
+        cflags=config["cflags"]
+    shell:
+        "{params.cc} -Ibenchmarks {params.cflags} -c -o {output} {input}"
+
+rule exocc_compile:
+    input:
+        "benchmarks/{kernel}/{variant}.py"
+    output:
+        "build/benchmarks/exocc/{kernel}/{variant}.c",
+        "build/benchmarks/exocc/{kernel}/{variant}.h"
+     # exclude main
+    wildcard_constraints:
+        variant="|".join(EXO_VARIANTS)
+    shell:
+        "exocc -o build/benchmarks/exocc/{wildcards.kernel} --stem {wildcards.variant} {input}"
+
+rule exocc_cc_compile:
+    input:
+        c="build/benchmarks/exocc/{kernel}/{variant}.c",
+        h="build/benchmarks/exocc/{kernel}/{variant}.h"
+    output:
+        "build/benchmarks/exocc/{kernel}/{variant}.S"
+     # exclude main
+    wildcard_constraints:
+        variant="|".join(EXO_VARIANTS)
+    params:
+        cc=config["cc"],
+        include=lambda wildcards: "build/benchmarks/exocc/{wildcards.kernel}",
+        cflags=config["cflags"],
+        vflags=lambda wildcards: config["vflags"][wildcards.variant]
+    shell:
+        "{params.cc} -I{params.include} {params.cflags} {params.vflags} -S -o {output} {input.c}"
+
+
+rule exocc_cc_compile_main:
+    input:
+        "benchmarks/{kernel}/exocc.c",
+        "build/benchmarks/benchmark.o",
+        "build/benchmarks/exocc/{kernel}/{variant}.o"
+    output:
+        "build/benchmarks/exocc/{kernel}/{variant}.x"
+    # exclude main
+    wildcard_constraints:
+        variant="|".join(EXO_VARIANTS)
     params:
         cc=config["cc"],
         cflags=config["cflags"],
         ldflags=config["ldflags"]
     shell:
-        "{params.cc} -Ibenchmarks {params.cflags} -c -o {output} {input.c} {params.ldflags}"
+        "{params.cc} -Ibenchmarks -I$(dirname {output}) {params.cflags} -o {output} {input} {params.ldflags} -D__TARGET_{wildcards.variant}"
 
-rule cc_compile_main:
+rule exocc_benchmark:
     input:
-        "benchmarks/{kernel}/main.c",
+        "build/benchmarks/exocc/{kernel}/{variant}.x"
     output:
-        "build/benchmarks/{kernel}/main.o"
-    params:
-        cc=config["cc"],
-        cflags=config["cflags"]
-    shell:
-        "{params.cc} -Ibenchmarks -I$(dirname {input}) -I$(dirname {output})  {params.cflags} -c -o {output} {input}"
-
-rule cc_link:
-    input:
-        "build/benchmarks/{kernel}/{variant}.o",
-        "build/benchmarks/{kernel}/main.o",
-        "build/benchmarks/benchmark.o"
-    output:
-        "build/benchmarks/{kernel}/{variant}.x"
-    params:
-        cc=config["cc"]
-    shell:
-        "{params.cc} -o {output} {input}"
-
-rule benchmark:
-    input:
-        "build/benchmarks/{kernel}/{variant}.x"
-    output:
-        "build/benchmarks/{kernel}/{variant}.csv"
+        "build/benchmarks/exocc/{kernel}/{variant}.csv"
     shell:
         "{input} > {output}"
 
 rule all:
     input:
-        expand("build/benchmarks/{kernel}/{variant}.csv", kernel=KERNELS, variant=SUPPORTED_EXO_VARIANTS)
+        expand("build/benchmarks/exocc/{kernel}/{variant}.csv", kernel=KERNELS, variant=SUPPORTED_EXO_VARIANTS)

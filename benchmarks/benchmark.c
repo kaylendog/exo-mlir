@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 199309L
+
 #include <float.h>
 #include <limits.h>
 #include <math.h>
@@ -49,6 +51,8 @@ void benchmark_print_stats(long *deltas, long size) {
 void benchmark_unary_procedure(char *name, long iterations, long repeats, matrix_alloc_t allocate_matrix,
 							   matrix_init_t init_matrix, unary_procedure_t baseline, unary_procedure_t procedure) {
 	fprintf(stderr, "----- Benchmark %s (iterations=%ld, repeats= %ld) -----\n", name, iterations, repeats);
+
+	printf("size,min,max,mean,stddev\n");
 
 	for (long i = 0; i < iterations; i++) {
 		fprintf(stderr, "--- Iteration %ld ---\n", i);
