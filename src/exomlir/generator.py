@@ -142,6 +142,8 @@ class IRGenerator:
         return self
 
     def generate(self, procs) -> ModuleOp:
+        # TODO: discover procedures
+
         for proc in procs:
             self.generate_procedure(proc)
 
@@ -200,6 +202,7 @@ class IRGenerator:
             return
 
         parent_builder = self.builder
+        parent_symbol_table = self.symbol_table
         self.symbol_table = ScopedDict[str, SSAValue]()
 
         # initialise function block
@@ -215,7 +218,7 @@ class IRGenerator:
         self.builder.insert(ReturnOp())
 
         # cleanup
-        self.symbol_table = None
+        self.symbol_table = parent_symbol_table
         self.builder = parent_builder
 
         # insert procedure into module

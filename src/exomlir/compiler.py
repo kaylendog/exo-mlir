@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import contextlib
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -100,11 +101,8 @@ def compile_path(src: Path, dest: Path | None = None):
 
     # load user code and get procedures from exo
     # procedures tend to do a lot of printing, so we suppress stdout temporarily
-    stdout = sys.stdout
-    sys.stdout = os.open(os.devnull, os.O_RDWR)
-    library = get_procs_from_module(load_user_code(src))  # type: list[Procedure]
-    sys.stdout.close()
-    sys.stdout = stdout
+    with contextlib.redirect_stdout(None):
+        library = get_procs_from_module(load_user_code(src))  # type: list[Procedure]
 
     logger.info(f"Compile[{src}] Loaded {len(library)} procedure(s) from source")
 
