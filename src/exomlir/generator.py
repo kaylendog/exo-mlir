@@ -58,6 +58,7 @@ from xdsl.dialects.memref import (
     GlobalOp,
     GetGlobalOp,
     SubviewOp,
+    CastOp as MemrefCastOp,
 )
 from xdsl.dialects.scf import ForOp, IfOp, YieldOp
 from xdsl.dialects.test import TestOp
@@ -165,11 +166,34 @@ class IRGenerator:
 
         if isinstance(type, IndexType) or isinstance(value.type, IndexType):
             cast = IndexCastOp(value, type)
+            result = cast.result
+
+        elif isinstance(type, MemRefType) and isinstance(value.type, MemRefType):
+            # check inner types are equal
+            if type.element_type != value.type.element_type:
+                raise IRGeneratorError(
+                    f"Cannot cast from {value.type} to {type} as inner types do not match"
+                )
+
+            # mandate target type has less shape information than source type
+            source_known_dims = sum(
+                1 if shape != -1 else 0 for shape in value.type.get_shape()
+            )
+            target_known_dims = sum(
+                1 if shape != -1 else 0 for shape in type.get_shape()
+            )
+            if source_known_dims < target_known_dims:
+                raise IRGeneratorError(
+                    f"Cannot cast from {value.type} to {type} as target has more known static dimensions than source"
+                )
+
+            cast = MemrefCastOp.get(value, type)
+            result = cast.results[0]
         else:
             raise IRGeneratorError(f"Unknown cast from {value.type} to {type}")
 
         self.builder.insert(cast)
-        return cast.result
+        return result
 
     def generate(self, procs) -> ModuleOp:
         for proc in procs:
@@ -367,7 +391,19 @@ class IRGenerator:
 
     def generate_call_stmt(self, call):
         self.generate_procedure(call.f)
-        args = [self.generate_expr(arg) for arg in call.args]
+
+        # ensure arg lengths match
+        if len(call.args) != len(call.f.args):
+            raise IRGeneratorError(
+                f"Call to '{call.f.name}' has {len(call.args)} arguments, expected {len(call.f.args)}"
+            )
+
+        # build arguments
+        args = [
+            self.cast_to(self.generate_expr(call_arg), self.get_type(proc_arg.type))
+            for (call_arg, proc_arg) in zip(call.args, call.f.args)
+        ]
+
         self.builder.insert(CallOp(call.f.name, args, []))
 
     # def generate_window_stmt(self, window):
@@ -652,18 +688,17 @@ class IRGenerator:
             )
 
     def convert_scalar_type_to_memref_type(self, type):
-        if type == f16:
-            return MemRefTypeF16(f16, [IntAttr(1)])
-        elif type == f32:
-            return MemRefTypeF32(f32, [IntAttr(1)])
-        elif type == f64:
-            return MemRefTypeF64(f64, [IntAttr(1)])
-        elif type == i8:
-            return MemRefTypeI8(i8, [IntAttr(1)])
-        elif type == i16:
-            return MemRefTypeI16(i16, [IntAttr(1)])
-        elif type == i32:
-            return MemRefTypeI32(i32, [IntAttr(1)])
+        type_to_memref = {
+            f16: MemRefTypeF16(f16, [IntAttr(1)]),
+            f32: MemRefTypeF32(f32, [IntAttr(1)]),
+            f64: MemRefTypeF64(f64, [IntAttr(1)]),
+            i8: MemRefTypeI8(i8, [IntAttr(1)]),
+            i16: MemRefTypeI16(i16, [IntAttr(1)]),
+            i32: MemRefTypeI32(i32, [IntAttr(1)]),
+        }
+
+        if type in type_to_memref:
+            return type_to_memref[type]
         else:
             raise IRGeneratorError(f"Bad scalar type '{type.name}'")
 
