@@ -141,22 +141,6 @@ class IRGenerator:
         self.symbol_table[sym.name()] = op.res[0]
         return self
 
-    def generate(self, procs) -> ModuleOp:
-        # TODO: discover procedures
-
-        for proc in procs:
-            self.generate_procedure(proc)
-
-        # verify module
-        # TODO: none of the operations actually implement verify_()
-        try:
-            self.module.verify()
-        except Exception as e:
-            print("module verification failed: ", e)
-            raise
-
-        return self.module
-
     def get_sym(self, sym: Sym) -> SSAValue:
         """Get the SSAValue for a symbol."""
         assert self.symbol_table is not None
@@ -175,7 +159,7 @@ class IRGenerator:
         return cast.result
 
     def cast_to(self, value: SSAValue, type: Attribute) -> SSAValue:
-        # must not cast if already an index
+        # no need to cast if types match
         if value.type is type:
             return value
 
@@ -187,6 +171,20 @@ class IRGenerator:
         self.builder.insert(cast)
         return cast.result
 
+    def generate(self, procs) -> ModuleOp:
+        for proc in procs:
+            self.generate_procedure(proc)
+
+        # verify module
+        # TODO: none of the operations actually implement verify_()
+        try:
+            self.module.verify()
+        except Exception as e:
+            print("module verification failed: ", e)
+            raise
+
+        return self.module
+
     def generate_procedure(self, procedure):
         if procedure.name in self.seen_procs:
             return
@@ -196,12 +194,17 @@ class IRGenerator:
         input_types = [self.get_type(arg.type) for arg in procedure.args]
         func_type = FunctionType.from_lists(input_types, [])
 
+        # instantiate builder at module level
+        parent_builder = self.builder
+        module_builder = Builder(
+            insertion_point=InsertPoint.at_end(self.module.body.blocks[0])
+        )
+
         # generate private funcs for instruction procedures
         if procedure.instr is not None:
-            self.builder.insert(FuncOp.external(procedure.name, input_types, []))
+            module_builder.insert(FuncOp.external(procedure.name, input_types, []))
             return
 
-        parent_builder = self.builder
         parent_symbol_table = self.symbol_table
         self.symbol_table = ScopedDict[str, SSAValue]()
 
@@ -222,7 +225,7 @@ class IRGenerator:
         self.builder = parent_builder
 
         # insert procedure into module
-        self.builder.insert(FuncOp(procedure.name, func_type, Region(block)))
+        module_builder.insert(FuncOp(procedure.name, func_type, Region(block)))
 
     def generate_stmt_list(self, stmts):
         """Generate a list of statements."""
