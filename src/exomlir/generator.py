@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TypeAlias
+from typing import Sequence, TypeAlias
 
 from exo.API import Sym
 from exo.core.LoopIR import LoopIR, T
@@ -579,14 +579,26 @@ class IRGenerator:
 
         idx = [self.generate_w_access(w_access) for w_access in window.idx]
 
+        # src_type = self.get_type(window.type.src_type)
+        # dest_type = self.get_type(window.type.as_tensor)
+
+        # (static_sizes, sizes) = self.split_memref_sizes()
+
+        # op = SubviewOp(
+        #     self.get_sym(window.name),
+        #     # offset is lower bound
+        #     [idx[0] for idx in idx],
+        #     # size for pt accesses = 1
+        # )
+
         op = SubviewOp.get(
             self.get_sym(window.name),
             # offset is lower bound
             [idx[0] for idx in idx],
             # size for pt accesses = 1
             # size for interval accesses = hi - lo
-            [one if len(idx) == 1 else idx[1] for idx in idx],
-            [one for _ in idx],
+            [1 if len(idx) == 1 else idx[1] for idx in idx],
+            [1 for _ in idx],
             self.get_type(window.type.as_tensor),
         )
 
@@ -712,3 +724,30 @@ class IRGenerator:
             return DenseIntOrFPElementsAttr.create_dense_int(memref_type, [IntAttr(0)])
         else:
             raise IRGeneratorError(f"Bad scalar type '{type.name}'")
+
+    def get_dynamic_ranked_memref(self, elem_type, rank) -> MemRefType:
+        """
+        Returns a MemRefType with static rank, but dynamic shape and striding information.
+        """
+        return MemRefType(
+            elem_type,
+            [IntAttr(-1) for _ in range(rank)],
+            StridedLayoutAttr([IntAttr(-1) for _ in range(rank)], IntAttr(-1)),
+        )
+
+    def split_memref_sizes(
+        values: Sequence[SSAValue | int],
+    ) -> tuple[Sequence[int], Sequence[SSAValue]]:
+        """
+        Split a list of memref indices into static and dynamic indices.
+        """
+        static_values = []
+        dynamic_values = []
+        for value in values:
+            if isinstance(value, int):
+                static_values.append(value)
+            else:
+                static_values.append(SubviewOp.DYNAMIC_INDEX)
+                dynamic_values.append(value)
+
+        return static_values, dynamic_values
