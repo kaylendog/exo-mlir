@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Sequence, TypeAlias
+from typing import TypeAlias
 
 from exo.API import Sym
 from exo.core.LoopIR import LoopIR, T
@@ -58,6 +58,7 @@ from xdsl.dialects.memref import (
     GlobalOp,
     GetGlobalOp,
     SubviewOp,
+    ReinterpretCastOp,
     CastOp as MemrefCastOp,
 )
 from xdsl.dialects.scf import ForOp, IfOp, YieldOp
@@ -277,7 +278,7 @@ class IRGenerator:
         elif isinstance(stmt, LoopIR.Call):
             self.generate_call_stmt(stmt)
         elif isinstance(stmt, LoopIR.Window):
-            self.generate_window_stmt(stmt)
+            raise IRGeneratorError("Window statements are not supported")
         else:
             raise IRGeneratorError(f"Unknown statement {stmt}")
 
@@ -579,18 +580,16 @@ class IRGenerator:
 
         idx = [self.generate_w_access(w_access) for w_access in window.idx]
 
-        # src_type = self.get_type(window.type.src_type)
-        # dest_type = self.get_type(window.type.as_tensor)
+        src_type = self.get_type(window.type.src_type)
+        dest_type = self.get_type(window.type.as_tensor)
 
-        # (static_sizes, sizes) = self.split_memref_sizes()
+        subview_type = MemRefType(
+            src_type.element_type,
+            [1 if len(idx) == 1 else -1 for idx in idx],
+            StridedLayoutAttr([1] * len(src_type.shape), 0),
+        )
 
-        # op = SubviewOp(
-        #     self.get_sym(window.name),
-        #     # offset is lower bound
-        #     [idx[0] for idx in idx],
-        #     # size for pt accesses = 1
-        # )
-
+        # take subview
         op = SubviewOp.get(
             self.get_sym(window.name),
             # offset is lower bound
@@ -599,11 +598,26 @@ class IRGenerator:
             # size for interval accesses = hi - lo
             [1 if len(idx) == 1 else idx[1] for idx in idx],
             [1 for _ in idx],
-            self.get_type(window.type.as_tensor),
+            subview_type,
+        )
+
+        # drop static rank info
+        assert op.result is not None
+        assert dest_type is not None
+        assert dest_type.get_shape() is not None
+
+        cast = ReinterpretCastOp.get(
+            op.result,
+            [0] * len(dest_type.shape),
+            dest_type.get_shape(),
+            [1] * len(dest_type.shape),
+            dest_type,
         )
 
         self.builder.insert(op)
-        return op.result
+        self.builder.insert(cast)
+
+        return cast.result
 
     def generate_w_access(self, w_access):
         if isinstance(w_access, LoopIR.Point):
@@ -616,6 +630,8 @@ class IRGenerator:
             self.builder.insert(size_op)
 
             return lo, size_op.result
+
+        raise AssertionError("Entered unreachable code")
 
     def generate_stride_expr(self, stride):
         raise NotImplementedError("stride expressions are not yet supported")
@@ -718,7 +734,7 @@ class IRGenerator:
         memref_type = self.convert_scalar_type_to_memref_type(type)
         if type in [f16, f32, f64]:
             return DenseIntOrFPElementsAttr.create_dense_float(
-                memref_type, [FloatAttr(0.0)]
+                memref_type, [FloatAttr(0.0, 32)]
             )
         elif type in [i8, i16, i32]:
             return DenseIntOrFPElementsAttr.create_dense_int(memref_type, [IntAttr(0)])
@@ -734,20 +750,3 @@ class IRGenerator:
             [IntAttr(-1) for _ in range(rank)],
             StridedLayoutAttr([IntAttr(-1) for _ in range(rank)], IntAttr(-1)),
         )
-
-    def split_memref_sizes(
-        values: Sequence[SSAValue | int],
-    ) -> tuple[Sequence[int], Sequence[SSAValue]]:
-        """
-        Split a list of memref indices into static and dynamic indices.
-        """
-        static_values = []
-        dynamic_values = []
-        for value in values:
-            if isinstance(value, int):
-                static_values.append(value)
-            else:
-                static_values.append(SubviewOp.DYNAMIC_INDEX)
-                dynamic_values.append(value)
-
-        return static_values, dynamic_values

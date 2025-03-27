@@ -8,7 +8,7 @@ dependencies = [
     "argparse>=1.4.0",
     "exo-lang==1.0.0",
     "pulp<2.8",
-    "snakemake>=8.27.0",
+    "snakemake>=9.1.1",
     "xdsl",
 ]
 scripts = { exo-mlir = "exomlir.main:main" }
@@ -21,4 +21,4 @@ dev = ["filecheck>=1.0.1", "lit>=18.1.8", "pytest>=8.3.4"]
 package = true
 
 [tool.uv.sources]
-xdsl = { git = "https://github.com/kaylendog/xdsl", rev = "b1f374bcfa6bf9207bbdbfc0879a65cc520048e8" }
+xdsl = { git = "https://github.com/kaylendog/xdsl", rev = "c1099aca8341a6437008fbf297cc7086a02b361e" }

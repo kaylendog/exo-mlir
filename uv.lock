@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = "==3.11.*"
 
 [[package]]
@@ -140,12 +141,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/bd/df/c9b4e25dce00f6349fd28aadba7b6c3f7431cc8bd4308a158fbe57b6a22e/connection_pool-0.0.3.tar.gz", hash = "sha256:bf429e7aef65921c69b4ed48f3d48d3eac1383b05d2df91884705842d974d0dc", size = 3795 }
 
 [[package]]
-name = "datrie"
-version = "0.8.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/9d/fe/db74bd405d515f06657f11ad529878fd389576dca4812bea6f98d9b31574/datrie-0.8.2.tar.gz", hash = "sha256:525b08f638d5cf6115df6ccd818e5a01298cd230b2dac91c8ff2e6499d18765d", size = 63278 }
-
-[[package]]
 name = "docutils"
 version = "0.21.2"
 source = { registry = "https://pypi.org/simple" }
@@ -204,8 +199,8 @@ requires-dist = [
     { name = "argparse", specifier = ">=1.4.0" },
     { name = "exo-lang", specifier = "==1.0.0" },
     { name = "pulp", specifier = "<2.8" },
-    { name = "snakemake", specifier = ">=8.27.0" },
-    { name = "xdsl", git = "https://github.com/kaylendog/xdsl?rev=b1f374bcfa6bf9207bbdbfc0879a65cc520048e8" },
+    { name = "snakemake", specifier = ">=9.1.1" },
+    { name = "xdsl", git = "https://github.com/kaylendog/xdsl?rev=c1099aca8341a6437008fbf297cc7086a02b361e" },
 ]
 
 [package.metadata.requires-dev]
@@ -638,14 +633,13 @@ wheels = [
 
 [[package]]
 name = "snakemake"
-version = "8.27.1"
+version = "9.1.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "appdirs" },
     { name = "conda-inject" },
     { name = "configargparse" },
     { name = "connection-pool" },
-    { name = "datrie" },
     { name = "docutils" },
     { name = "dpath" },
     { name = "gitpython" },
@@ -663,6 +657,7 @@ dependencies = [
     { name = "smart-open" },
     { name = "snakemake-interface-common" },
     { name = "snakemake-interface-executor-plugins" },
+    { name = "snakemake-interface-logger-plugins" },
     { name = "snakemake-interface-report-plugins" },
     { name = "snakemake-interface-storage-plugins" },
     { name = "tabulate" },
@@ -670,9 +665,9 @@ dependencies = [
     { name = "wrapt" },
     { name = "yte" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/14/0b/b0e763613229a586d0b4b12df2a516a0a0be8ba324713d85ae8eea3b54b0/snakemake-8.27.1.tar.gz", hash = "sha256:17fb3c80618dae88c236766a0fe45924119351da9bdc9aa2e8f11dbcfd95aded", size = 4735649 }
+sdist = { url = "https://files.pythonhosted.org/packages/10/9c/7d4a4e258a7ac010411ef1272f8f7aad1392d03d40ceed7f7a45583ca54d/snakemake-9.1.2.tar.gz", hash = "sha256:aa76012bfa3c2f2c5f46a9550bbe34bbf37ebb8322331ed7b619ba174a537acc", size = 5974445 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b7/7c/53eaebfabe89bb2c14a611f165b79f279b27fa837c59b181392dd2f6630f/snakemake-8.27.1-py3-none-any.whl", hash = "sha256:873e6014cb2418db14a6bdf02da4113488095c9cff179407b236ac7976143864", size = 1008072 },
+    { url = "https://files.pythonhosted.org/packages/e0/f4/578f541d83c043e74b36ba3e82ca92f01636e71ec63a3953f8d75d94f588/snakemake-9.1.2-py3-none-any.whl", hash = "sha256:95e299a622bbb1b18ad8a215b5690e917bc3b9e221a8c1ffd07f0df6ddb7fea2", size = 1096890 },
 ]
 
 [[package]]
@@ -703,6 +698,18 @@ wheels = [
 ]
 
 [[package]]
+name = "snakemake-interface-logger-plugins"
+version = "1.2.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "snakemake-interface-common" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b2/30/96e98e0d3feedcaf40820f7604cc86dfb9a0174408e7f70a7fd876a9b8c8/snakemake_interface_logger_plugins-1.2.3.tar.gz", hash = "sha256:9228cc01f2cc0b35e9144c02d10f71cc9874296272896aeb86f9fac7db5e2c69", size = 8125 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fa/36/3e631b82c4822569e7af783e05e0feb29d33b3bd886977b0d70183f9ed4a/snakemake_interface_logger_plugins-1.2.3-py3-none-any.whl", hash = "sha256:95dd1dd83f04f2c7191c9cfdea78bf1dd7e216b838d91f86d4780aa11a4ce276", size = 6217 },
+]
+
+[[package]]
 name = "snakemake-interface-report-plugins"
 version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -716,7 +723,7 @@ wheels = [
 
 [[package]]
 name = "snakemake-interface-storage-plugins"
-version = "3.3.0"
+version = "4.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "reretry" },
@@ -724,9 +731,9 @@ dependencies = [
     { name = "throttler" },
     { name = "wrapt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c7/7d/f5d9662f97121cc42415197bacccb7a1cc893524da1138c2fc19ef835881/snakemake_interface_storage_plugins-3.3.0.tar.gz", hash = "sha256:203d8f794dfb37d568ad01a6c375fa8beac36df8e488c0f9b9f75984769c362a", size = 12244 }
+sdist = { url = "https://files.pythonhosted.org/packages/25/82/29b9212ece305f2a8db47c1b8fabb14174aa7fdde8005a4912c011c3bb54/snakemake_interface_storage_plugins-4.2.1.tar.gz", hash = "sha256:41f23c1940942d45fe6afa6578b50a7181b2d4d32013421ef2fc1ea0e4bbe137", size = 14052 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c6/0c/dd82f976885558dabc5bbbf7423090a628c06f8a2b4ed17e9a20fa61b531/snakemake_interface_storage_plugins-3.3.0-py3-none-any.whl", hash = "sha256:090292ee9e867d98513fb7c948461186357aa7d08db10f4b3018fc9e9008dd80", size = 15129 },
+    { url = "https://files.pythonhosted.org/packages/20/91/5dab248aa54f523184d6289bbfa9ce763ef4c9556ffcd1f8c8c5b394e65c/snakemake_interface_storage_plugins-4.2.1-py3-none-any.whl", hash = "sha256:780904853a80ea96e69bc8047fec8281b1f18c2b525044ffffb2b053fc29f50b", size = 16958 },
 ]
 
 [[package]]
@@ -804,8 +811,8 @@ wheels = [
 
 [[package]]
 name = "xdsl"
-version = "0+untagged.3244.gb1f374b"
-source = { git = "https://github.com/kaylendog/xdsl?rev=b1f374bcfa6bf9207bbdbfc0879a65cc520048e8#b1f374bcfa6bf9207bbdbfc0879a65cc520048e8" }
+version = "0+untagged.3467.gc1099ac"
+source = { git = "https://github.com/kaylendog/xdsl?rev=c1099aca8341a6437008fbf297cc7086a02b361e#c1099aca8341a6437008fbf297cc7086a02b361e" }
 dependencies = [
     { name = "immutabledict" },
     { name = "ordered-set" },
