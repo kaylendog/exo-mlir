@@ -206,6 +206,14 @@ class IRGenerator:
         self.seen_procs.add(procedure.name)
 
         input_types = [self.get_type(arg.type) for arg in procedure.args]
+        # scalar arguments with memory annotations should be treated as memrefs
+        input_types = [
+            self.convert_scalar_type_to_memref_type(t)
+            if not isinstance(t, MemRefType) and arg.mem is not None
+            else t
+            for t, arg in zip(input_types, procedure.args)
+        ]
+
         func_type = FunctionType.from_lists(input_types, [])
 
         # instantiate builder at module level
@@ -272,26 +280,47 @@ class IRGenerator:
             raise IRGeneratorError(f"Unknown statement {stmt}")
 
     def generate_assign_stmt(self, assign):
-        idx = self.generate_expr_list(assign.idx)
-        idx = [self.cast_to_index(i) for i in idx]
-        rhs = self.generate_expr(assign.rhs)
-        self.builder.insert(StoreOp(operands=[rhs, self.get_sym(assign.name), idx]))
+        idx = [self.cast_to_index(i) for i in self.generate_expr_list(assign.idx)]
+        value = self.generate_expr(assign.rhs)
+        memref = self.get_sym(assign.name)
+
+        assert isinstance(memref.type, MemRefType), (assign.name, memref.type)
+
+        # special case for scalar assignments
+        if (
+            len(idx) == 0
+            and len(memref.type.shape) == 1
+            and memref.type.shape.data[0] == 1
+        ):
+            idx = [zero := ConstantOp(IntegerAttr(0, IndexType()))]
+            self.builder.insert(zero)
+
+        self.builder.insert(StoreOp(operands=[value, memref, idx]))
 
     def generate_reduce_stmt(self, reduce):
-        idx = self.generate_expr_list(reduce.idx)
-        idx = [self.cast_to_index(i) for i in idx]
-        rhs = self.generate_expr(reduce.rhs)
-
+        idx = [self.cast_to_index(i) for i in self.generate_expr_list(reduce.idx)]
+        value = self.generate_expr(reduce.rhs)
         memref = self.get_sym(reduce.name)
 
-        # load value from memory, add rhs, store back - could use AtomicRMWOp here?
-        load = LoadOp(operands=[memref, idx], result_types=[rhs.type])
-        inc = AddfOp(load.res, rhs, result_type=rhs.type)
-        store = StoreOp(operands=[inc.result, memref, idx])
+        assert isinstance(memref.type, MemRefType), (reduce.name, memref.type)
 
-        self.builder.insert(load)
-        self.builder.insert(inc)
-        self.builder.insert(store)
+        # special case for scalar assignments
+        if (
+            len(idx) == 0
+            and len(memref.type.shape) == 1
+            and memref.type.shape.data[0] == 1
+        ):
+            idx = [zero := ConstantOp(IntegerAttr(0, IndexType()))]
+            self.builder.insert(zero)
+
+        # load value from memory, add rhs, store back
+        self.builder.insert(
+            (
+                load := LoadOp(operands=[memref, idx], result_types=[value.type]),
+                inc := AddfOp(load.res, value, result_type=value.type),
+                StoreOp(operands=[inc.result, memref, idx]),
+            )
+        )
 
     def generate_write_config_stmt(self, write_config):
         # rhs = self.generate_expr(write_config.rhs)

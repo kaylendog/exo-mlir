@@ -14,9 +14,7 @@ dependencies = [
 scripts = { exo-mlir = "exomlir.main:main" }
 
 [project.optional-dependencies]
-exoblas = [
-    "exoblas",
-]
+exoblas = ["exoblas"]
 
 [dependency-groups]
 dev = ["filecheck>=1.0.1", "lit>=18.1.8", "pytest>=8.3.4"]
