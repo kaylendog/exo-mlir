@@ -23,6 +23,10 @@ def main():
         "-v", "--verbose", action="store_true", help="Print verbose output"
     )
     parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
+    parser.add_argument(
+        "--print-exo",
+        action="store_true",
+    )
 
     args = parser.parse_args()
     srcs = [Path(src) for src in args.source]
@@ -53,7 +57,9 @@ def main():
     # multiple source files
     dests = [Path(args.output) / src.with_suffix(".mlir").name for src in srcs]
     for src, dest in zip(srcs, dests):
-        compile_path(src, dest if args.output != "-" else None)
+        compile_path(
+            src, dest if args.output != "-" else None, print_exo=args.print_exo
+        )
 
 
 if __name__ == "__main__":

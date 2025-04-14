@@ -57,7 +57,7 @@ def compile_one(proc: Procedure) -> ModuleOp:
     return transform(context(), compile_many([proc]))
 
 
-def compile_many(library: Sequence[Procedure]) -> ModuleOp:
+def compile_many(library: Sequence[Procedure], print_exo=False) -> ModuleOp:
     """
     Compile a list of procedures into a single MLIR module..
     """
@@ -80,11 +80,16 @@ def compile_many(library: Sequence[Procedure]) -> ModuleOp:
     # analyze procedures
     analyzed_procedures = [analyze(proc) for proc in input_procedures]
 
+    # if print_exo is set, print the analyzed procedures
+    if print_exo:
+        for proc in analyzed_procedures:
+            print(proc)
+
     # generate MLIR
     return IRGenerator().generate(analyzed_procedures)
 
 
-def compile_path(src: Path, dest: Path | None = None):
+def compile_path(src: Path, dest: Path | None = None, print_exo: bool = False):
     """
     Compile all procedures in a Python source file to a single MLIR module, and write it to a file.
     """
@@ -109,7 +114,7 @@ def compile_path(src: Path, dest: Path | None = None):
     assert isinstance(library, list)
     assert all(isinstance(proc, Procedure) for proc in library)
 
-    module = compile_many(library)
+    module = compile_many(library, print_exo=print_exo)
     module = transform(context(), module)
 
     # print to stdout if no dest

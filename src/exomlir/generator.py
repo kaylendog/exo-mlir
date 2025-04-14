@@ -106,6 +106,7 @@ class IRGenerator:
     symbol_table: ScopedDict[str, SSAValue] | None = None
 
     seen_procs: set[str] = set()
+    seen_externs: set[str] = set()
 
     def __init__(self):
         self.module = ModuleOp([])
@@ -133,24 +134,24 @@ class IRGenerator:
         Declare a value in the symbol table.
         """
         assert self.symbol_table is not None
-        self.symbol_table[sym.name()] = value
+        self.symbol_table[sym.__repr__()] = value
         return value
 
     def _with_test_op(self, sym: Sym, type):
         assert self.symbol_table is not None
         op = TestOp(result_types=[self.get_type(type)])
         self.builder.insert(op)
-        self.symbol_table[sym.name()] = op.res[0]
+        self.symbol_table[sym.__repr__()] = op.res[0]
         return self
 
     def get_sym(self, sym: Sym) -> SSAValue:
         """Get the SSAValue for a symbol."""
         assert self.symbol_table is not None
 
-        if sym.name() not in self.symbol_table:
-            raise IRGeneratorError(f"Unknown symbol {sym.name()}")
+        if sym.__repr__() not in self.symbol_table:
+            raise IRGeneratorError(f"Unknown symbol {sym.__repr__()}")
 
-        return self.symbol_table[sym.name()]
+        return self.symbol_table[sym.__repr__()]
 
     def cast_to_index(self, value: SSAValue) -> SSAValue:
         # must not cast if already an index
@@ -174,18 +175,6 @@ class IRGenerator:
             if type.element_type != value.type.element_type:
                 raise IRGeneratorError(
                     f"Cannot cast from {value.type} to {type} as inner types do not match"
-                )
-
-            # mandate target type has less shape information than source type
-            source_known_dims = sum(
-                1 if shape != -1 else 0 for shape in value.type.get_shape()
-            )
-            target_known_dims = sum(
-                1 if shape != -1 else 0 for shape in type.get_shape()
-            )
-            if source_known_dims < target_known_dims:
-                raise IRGeneratorError(
-                    f"Cannot cast from {value.type} to {type} as target has more known static dimensions than source"
                 )
 
             cast = MemrefCastOp.get(value, type)
@@ -419,10 +408,14 @@ class IRGenerator:
             return self.generate_read_expr(expr)
         elif isinstance(expr, LoopIR.Const):
             return self.generate_const_expr(expr)
+        elif isinstance(expr, LoopIR.USub):
+            return self.generate_usub_expr(expr)
         elif isinstance(expr, LoopIR.BinOp):
             return self.generate_binop_expr(expr)
         elif isinstance(expr, LoopIR.WindowExpr):
             return self.generate_window_expr(expr)
+        elif isinstance(expr, LoopIR.Extern):
+            return self.generate_extern_expr(expr)
         else:
             raise IRGeneratorError(
                 f"Unknown expression type '{type(expr)}' for expression '{expr}'"
@@ -567,12 +560,6 @@ class IRGenerator:
         self.builder.insert(binop)
         return binop.result
 
-    def generate_extern_expr(self, extern):
-        args = self.generate_expr_list(extern.args)
-        extern = CallOp(extern.f.name, args, [])
-        self.builder.insert(extern)
-        return extern.res
-
     def generate_window_expr(self, window):
         # need 1 for fixed-size window indexes
         one = ConstantOp(IntegerAttr(1, IndexType()))
@@ -636,6 +623,25 @@ class IRGenerator:
     def generate_stride_expr(self, stride):
         raise NotImplementedError("stride expressions are not yet supported")
 
+    def generate_extern_expr(self, extern):
+        # compute extern types
+        input_types = [self.get_type(arg.type) for arg in extern.args]
+        output_type = extern.f.typecheck(extern.args)
+
+        # declare extern function if not seen
+        if extern.f.name() not in self.seen_externs:
+            # instantiate builder at module level
+            module_builder = Builder(
+                insertion_point=InsertPoint.at_end(self.module.body.blocks[0])
+            )
+            module_builder.insert(
+                FuncOp.external(extern.f.name(), input_types, [output_type])
+            )
+
+        args = self.generate_expr_list(extern.args)
+        self.builder.insert(op := CallOp(extern.f.name(), args, [output_type]))
+        return op.results[0]
+
     def generate_read_config_expr(self, read_config):
         raise NotImplementedError()
 
@@ -697,7 +703,7 @@ class IRGenerator:
         def attr_from_expr(expr):
             if isinstance(expr, LoopIR.Const):
                 return IntAttr(expr.val)
-            elif isinstance(expr, LoopIR.Read):
+            elif isinstance(expr, LoopIR.Read) or isinstance(expr, LoopIR.BinOp):
                 return IntAttr(-1)
             else:
                 raise IRGeneratorError(f"Invalid shape argument {expr}")
