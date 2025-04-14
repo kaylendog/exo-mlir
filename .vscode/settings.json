@@ -73,7 +73,7 @@
 		"nanotime.h": "c",
 		"base.h": "c"
 	},
-	"mlir.server_path": "./submodules/llvm-project/build/bin/",
+	"mlir.server_path": "/usr/bin/mlir-lsp-server",
 	"git.ignoreLimitWarning": true,
 	"python.testing.pytestEnabled": true,
 	"python.testing.pytestArgs": ["./tests"]

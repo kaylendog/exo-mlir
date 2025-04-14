@@ -2,6 +2,12 @@ version = 1
 revision = 1
 requires-python = "==3.11.*"
 
+[manifest]
+members = [
+    "exo-mlir",
+    "exoblas",
+]
+
 [[package]]
 name = "appdirs"
 version = "1.4.4"
@@ -187,6 +193,11 @@ dependencies = [
     { name = "xdsl" },
 ]
 
+[package.optional-dependencies]
+exoblas = [
+    { name = "exoblas" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "filecheck" },
@@ -198,16 +209,33 @@ dev = [
 requires-dist = [
     { name = "argparse", specifier = ">=1.4.0" },
     { name = "exo-lang", specifier = "==1.0.0" },
+    { name = "exoblas", marker = "extra == 'exoblas'", editable = "exoblas" },
     { name = "pulp", specifier = "<2.8" },
-    { name = "snakemake", specifier = ">=9.1.1" },
-    { name = "xdsl", git = "https://github.com/kaylendog/xdsl?rev=c1099aca8341a6437008fbf297cc7086a02b361e" },
+    { name = "snakemake", specifier = ">=9.1.10" },
+    { name = "xdsl", git = "https://github.com/kaylendog/xdsl?rev=2cd78c78489ce1aacdcdff0a97247f057ef295f1" },
 ]
+provides-extras = ["exoblas"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "filecheck", specifier = ">=1.0.1" },
     { name = "lit", specifier = ">=18.1.8" },
     { name = "pytest", specifier = ">=8.3.4" },
+]
+
+[[package]]
+name = "exoblas"
+version = "0.1.0"
+source = { editable = "exoblas" }
+dependencies = [
+    { name = "exo-lang" },
+    { name = "sympy" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "exo-lang", specifier = ">=1.0.0" },
+    { name = "sympy", specifier = ">=1.13.3" },
 ]
 
 [[package]]
@@ -397,6 +425,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/69/84/83439e16197337b8b14b6a5b9c2105fff81d42c2a7c5b58ac7b62ee2c3b1/MarkupSafe-3.0.2-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:0bff5e0ae4ef2e1ae4fdf2dfd5b76c75e5c2fa4132d05fc1b0dabcd20c7e28c4", size = 23306 },
     { url = "https://files.pythonhosted.org/packages/9a/34/a15aa69f01e2181ed8d2b685c0d2f6655d5cca2c4db0ddea775e631918cd/MarkupSafe-3.0.2-cp311-cp311-win32.whl", hash = "sha256:6c89876f41da747c8d3677a2b540fb32ef5715f97b66eeb0c6b66f5e3ef6f59d", size = 15094 },
     { url = "https://files.pythonhosted.org/packages/da/b8/3a3bd761922d416f3dc5d00bfbed11f66b1ab89a0c2b6e887240a30b0f6b/MarkupSafe-3.0.2-cp311-cp311-win_amd64.whl", hash = "sha256:70a87b411535ccad5ef2f1df5136506a10775d267e197e4cf531ced10537bd6b", size = 15521 },
+]
+
+[[package]]
+name = "mpmath"
+version = "1.3.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e0/47/dd32fa426cc72114383ac549964eecb20ecfd886d1e5ccf5340b55b02f57/mpmath-1.3.0.tar.gz", hash = "sha256:7a28eb2a9774d00c7bc92411c19a89209d5da7c4c9a9e227be8330a23a25b91f", size = 508106 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/43/e3/7d92a15f894aa0c9c4b49b8ee9ac9850d6e63b03c9c32c0367a13ae62209/mpmath-1.3.0-py3-none-any.whl", hash = "sha256:a0b2b9fe80bbcd81a6647ff13108738cfb482d481d826cc0e02f5b35e5c88d2c", size = 536198 },
 ]
 
 [[package]]
@@ -633,7 +670,7 @@ wheels = [
 
 [[package]]
 name = "snakemake"
-version = "9.1.2"
+version = "9.1.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "appdirs" },
@@ -665,9 +702,9 @@ dependencies = [
     { name = "wrapt" },
     { name = "yte" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/10/9c/7d4a4e258a7ac010411ef1272f8f7aad1392d03d40ceed7f7a45583ca54d/snakemake-9.1.2.tar.gz", hash = "sha256:aa76012bfa3c2f2c5f46a9550bbe34bbf37ebb8322331ed7b619ba174a537acc", size = 5974445 }
+sdist = { url = "https://files.pythonhosted.org/packages/0d/01/a5b3e08d50519c375bfbffa6876182921f26957f8fc8a1425e686df6f660/snakemake-9.1.10.tar.gz", hash = "sha256:71fc5f6b9e8a35ae1a54d8958a010055c32288540bd7328606bb5a94d34bd1a8", size = 5975849 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e0/f4/578f541d83c043e74b36ba3e82ca92f01636e71ec63a3953f8d75d94f588/snakemake-9.1.2-py3-none-any.whl", hash = "sha256:95e299a622bbb1b18ad8a215b5690e917bc3b9e221a8c1ffd07f0df6ddb7fea2", size = 1096890 },
+    { url = "https://files.pythonhosted.org/packages/38/0a/de354aef0a77ae11f0e3b50b7a36a9bde678b155579436baa74969643db4/snakemake-9.1.10-py3-none-any.whl", hash = "sha256:7766d10e119a21bef0ab9bf22f5c7ec3245c158e44da1f5e38f2073ab5fba7f4", size = 1099579 },
 ]
 
 [[package]]
@@ -734,6 +771,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/25/82/29b9212ece305f2a8db47c1b8fabb14174aa7fdde8005a4912c011c3bb54/snakemake_interface_storage_plugins-4.2.1.tar.gz", hash = "sha256:41f23c1940942d45fe6afa6578b50a7181b2d4d32013421ef2fc1ea0e4bbe137", size = 14052 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/20/91/5dab248aa54f523184d6289bbfa9ce763ef4c9556ffcd1f8c8c5b394e65c/snakemake_interface_storage_plugins-4.2.1-py3-none-any.whl", hash = "sha256:780904853a80ea96e69bc8047fec8281b1f18c2b525044ffffb2b053fc29f50b", size = 16958 },
+]
+
+[[package]]
+name = "sympy"
+version = "1.13.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "mpmath" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/11/8a/5a7fd6284fa8caac23a26c9ddf9c30485a48169344b4bd3b0f02fef1890f/sympy-1.13.3.tar.gz", hash = "sha256:b27fd2c6530e0ab39e275fc9b683895367e51d5da91baa8d3d64db2565fec4d9", size = 7533196 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/99/ff/c87e0622b1dadea79d2fb0b25ade9ed98954c9033722eb707053d310d4f3/sympy-1.13.3-py3-none-any.whl", hash = "sha256:54612cf55a62755ee71824ce692986f23c88ffa77207b30c1368eda4a7060f73", size = 6189483 },
 ]
 
 [[package]]
@@ -811,8 +860,8 @@ wheels = [
 
 [[package]]
 name = "xdsl"
-version = "0+untagged.3467.gc1099ac"
-source = { git = "https://github.com/kaylendog/xdsl?rev=c1099aca8341a6437008fbf297cc7086a02b361e#c1099aca8341a6437008fbf297cc7086a02b361e" }
+version = "0.1.dev3610+g2cd78c7"
+source = { git = "https://github.com/kaylendog/xdsl?rev=2cd78c78489ce1aacdcdff0a97247f057ef295f1#2cd78c78489ce1aacdcdff0a97247f057ef295f1" }
 dependencies = [
     { name = "immutabledict" },
     { name = "ordered-set" },

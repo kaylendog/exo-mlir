@@ -586,7 +586,7 @@ class IRGenerator:
         subview_type = MemRefType(
             src_type.element_type,
             [1 if len(idx) == 1 else -1 for idx in idx],
-            StridedLayoutAttr([1] * len(src_type.shape), 0),
+            StridedLayoutAttr([1 for _ in src_type.shape], None),
         )
 
         # take subview
@@ -606,9 +606,9 @@ class IRGenerator:
         assert dest_type is not None
         assert dest_type.get_shape() is not None
 
-        cast = ReinterpretCastOp.get(
+        cast = ReinterpretCastOp.from_dynamic(
             op.result,
-            [0] * len(dest_type.shape),
+            [0],
             dest_type.get_shape(),
             [1] * len(dest_type.shape),
             dest_type,
@@ -671,7 +671,7 @@ class IRGenerator:
 
             # compute shape and strides
             shape = self.get_shape(t)
-            strides = StridedLayoutAttr([IntAttr(1) for _ in shape], IntAttr(0))
+            strides = StridedLayoutAttr([1 for _ in shape])
 
             if inner == f16:
                 return MemRefTypeF16(f16, shape, strides)
@@ -747,6 +747,6 @@ class IRGenerator:
         """
         return MemRefType(
             elem_type,
-            [IntAttr(-1) for _ in range(rank)],
-            StridedLayoutAttr([IntAttr(-1) for _ in range(rank)], IntAttr(-1)),
+            [-1 for _ in range(rank)],
+            StridedLayoutAttr([-1 for _ in range(rank)]),
         )

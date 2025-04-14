@@ -1,6 +1,5 @@
 import logging
 import os
-import sys
 import contextlib
 from collections.abc import Sequence
 from pathlib import Path
@@ -13,7 +12,7 @@ from exo.backend.prec_analysis import PrecisionAnalysis
 from exo.backend.win_analysis import WindowAnalysis
 from exo.core.LoopIR import LoopIR
 from exo.main import get_procs_from_module, load_user_code
-from xdsl.context import MLContext
+from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp, Builtin
 from xdsl.dialects import arith, func, memref, scf
 from xdsl.transforms.canonicalize import CanonicalizePass
@@ -26,8 +25,8 @@ from exomlir.generator import IRGenerator
 logger = logging.getLogger("exo-mlir")
 
 
-def context() -> MLContext:
-    ctx = MLContext()
+def context() -> Context:
+    ctx = Context()
     ctx.load_dialect(arith.Arith)
     ctx.load_dialect(Builtin)
     ctx.load_dialect(func.Func)
@@ -123,7 +122,7 @@ def compile_path(src: Path, dest: Path | None = None):
     dest.write_text(str(module))
 
 
-def transform(ctx: MLContext, module: ModuleOp) -> ModuleOp:
+def transform(ctx: Context, module: ModuleOp) -> ModuleOp:
     """
     Apply transformations to an MLIR module.
     """
