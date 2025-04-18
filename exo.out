@@ -1,0 +1,560 @@
+def exo_dasum_stride_1(n: size, x: [f64][n] @ DRAM, result: f64 @ DRAM):
+    assert stride(x, 0) == 1
+    result_: f64 @ DRAM
+    result_ = 0.0
+    var10: f64[4] @ VEC_AVX2
+    vec_zero_f64x4(var10[0:4])
+    var15: f64[8, 4] @ VEC_AVX2
+    vec_zero_f64x4(var15[0, 0:4])
+    vec_zero_f64x4(var15[1, 0:4])
+    vec_zero_f64x4(var15[2, 0:4])
+    vec_zero_f64x4(var15[3, 0:4])
+    vec_zero_f64x4(var15[4, 0:4])
+    vec_zero_f64x4(var15[5, 0:4])
+    vec_zero_f64x4(var15[6, 0:4])
+    vec_zero_f64x4(var15[7, 0:4])
+    for ioo in seq(0, ((3 + n) / 4 - 1) / 8):
+        var9: f64[8, 4] @ VEC_AVX2
+        var12: f64[8, 4] @ VEC_AVX2
+        var13: f64[8, 4] @ VEC_AVX2
+        var14: f64[8, 4] @ VEC_AVX2
+        vec_load_f64x4(var9[0, 0:4], x[32 * ioo:4 + 32 * ioo])
+        vec_load_f64x4(var9[1, 0:4], x[4 + 32 * ioo:8 + 32 * ioo])
+        vec_load_f64x4(var9[2, 0:4], x[8 + 32 * ioo:12 + 32 * ioo])
+        vec_load_f64x4(var9[3, 0:4], x[12 + 32 * ioo:16 + 32 * ioo])
+        vec_load_f64x4(var9[4, 0:4], x[16 + 32 * ioo:20 + 32 * ioo])
+        vec_load_f64x4(var9[5, 0:4], x[20 + 32 * ioo:24 + 32 * ioo])
+        vec_load_f64x4(var9[6, 0:4], x[24 + 32 * ioo:28 + 32 * ioo])
+        vec_load_f64x4(var9[7, 0:4], x[28 + 32 * ioo:32 + 32 * ioo])
+        vec_copy_f64x4(var13[0, 0:4], var9[0, 0:4])
+        vec_copy_f64x4(var13[1, 0:4], var9[1, 0:4])
+        vec_copy_f64x4(var13[2, 0:4], var9[2, 0:4])
+        vec_copy_f64x4(var13[3, 0:4], var9[3, 0:4])
+        vec_copy_f64x4(var13[4, 0:4], var9[4, 0:4])
+        vec_copy_f64x4(var13[5, 0:4], var9[5, 0:4])
+        vec_copy_f64x4(var13[6, 0:4], var9[6, 0:4])
+        vec_copy_f64x4(var13[7, 0:4], var9[7, 0:4])
+        vec_copy_f64x4(var14[0, 0:4], var9[0, 0:4])
+        vec_copy_f64x4(var14[1, 0:4], var9[1, 0:4])
+        vec_copy_f64x4(var14[2, 0:4], var9[2, 0:4])
+        vec_copy_f64x4(var14[3, 0:4], var9[3, 0:4])
+        vec_copy_f64x4(var14[4, 0:4], var9[4, 0:4])
+        vec_copy_f64x4(var14[5, 0:4], var9[5, 0:4])
+        vec_copy_f64x4(var14[6, 0:4], var9[6, 0:4])
+        vec_copy_f64x4(var14[7, 0:4], var9[7, 0:4])
+        free(var14)
+        free(var9)
+        vec_abs_f64x4(var12[0, 0:4], var13[0, 0:4])
+        vec_abs_f64x4(var12[1, 0:4], var13[1, 0:4])
+        vec_abs_f64x4(var12[2, 0:4], var13[2, 0:4])
+        vec_abs_f64x4(var12[3, 0:4], var13[3, 0:4])
+        vec_abs_f64x4(var12[4, 0:4], var13[4, 0:4])
+        vec_abs_f64x4(var12[5, 0:4], var13[5, 0:4])
+        vec_abs_f64x4(var12[6, 0:4], var13[6, 0:4])
+        vec_abs_f64x4(var12[7, 0:4], var13[7, 0:4])
+        free(var13)
+        vec_add_red_f64x4(var15[0, 0:4], var12[0, 0:4])
+        vec_add_red_f64x4(var15[1, 0:4], var12[1, 0:4])
+        vec_add_red_f64x4(var15[2, 0:4], var12[2, 0:4])
+        vec_add_red_f64x4(var15[3, 0:4], var12[3, 0:4])
+        vec_add_red_f64x4(var15[4, 0:4], var12[4, 0:4])
+        vec_add_red_f64x4(var15[5, 0:4], var12[5, 0:4])
+        vec_add_red_f64x4(var15[6, 0:4], var12[6, 0:4])
+        vec_add_red_f64x4(var15[7, 0:4], var12[7, 0:4])
+        free(var12)
+    vec_add_red_f64x4(var10[0:4], var15[0, 0:4])
+    vec_add_red_f64x4(var10[0:4], var15[1, 0:4])
+    vec_add_red_f64x4(var10[0:4], var15[2, 0:4])
+    vec_add_red_f64x4(var10[0:4], var15[3, 0:4])
+    vec_add_red_f64x4(var10[0:4], var15[4, 0:4])
+    vec_add_red_f64x4(var10[0:4], var15[5, 0:4])
+    vec_add_red_f64x4(var10[0:4], var15[6, 0:4])
+    vec_add_red_f64x4(var10[0:4], var15[7, 0:4])
+    free(var15)
+    var16: f64[4, 4] @ VEC_AVX2
+    vec_zero_f64x4(var16[0, 0:4])
+    vec_zero_f64x4(var16[1, 0:4])
+    vec_zero_f64x4(var16[2, 0:4])
+    vec_zero_f64x4(var16[3, 0:4])
+    for ioio in seq(0, ((3 + n) / 4 - 1) % 8 / 4):
+        var9: f64[4, 4] @ VEC_AVX2
+        var12: f64[4, 4] @ VEC_AVX2
+        var13: f64[4, 4] @ VEC_AVX2
+        var14: f64[4, 4] @ VEC_AVX2
+        vec_load_f64x4(
+            var9[0, 0:4], x[32 * (((3 + n) / 4 - 1) / 8) + 16 * ioio:32 *
+                            (((3 + n) / 4 - 1) / 8) + 16 * ioio + 4])
+        vec_load_f64x4(
+            var9[1, 0:4], x[32 * (((3 + n) / 4 - 1) / 8) + 16 * ioio + 4:32 *
+                            (((3 + n) / 4 - 1) / 8) + 16 * ioio + 8])
+        vec_load_f64x4(
+            var9[2, 0:4], x[32 * (((3 + n) / 4 - 1) / 8) + 16 * ioio + 8:32 *
+                            (((3 + n) / 4 - 1) / 8) + 16 * ioio + 12])
+        vec_load_f64x4(
+            var9[3, 0:4], x[32 * (((3 + n) / 4 - 1) / 8) + 16 * ioio + 12:32 *
+                            (((3 + n) / 4 - 1) / 8) + 16 * ioio + 16])
+        vec_copy_f64x4(var13[0, 0:4], var9[0, 0:4])
+        vec_copy_f64x4(var13[1, 0:4], var9[1, 0:4])
+        vec_copy_f64x4(var13[2, 0:4], var9[2, 0:4])
+        vec_copy_f64x4(var13[3, 0:4], var9[3, 0:4])
+        vec_copy_f64x4(var14[0, 0:4], var9[0, 0:4])
+        vec_copy_f64x4(var14[1, 0:4], var9[1, 0:4])
+        vec_copy_f64x4(var14[2, 0:4], var9[2, 0:4])
+        vec_copy_f64x4(var14[3, 0:4], var9[3, 0:4])
+        free(var14)
+        free(var9)
+        vec_abs_f64x4(var12[0, 0:4], var13[0, 0:4])
+        vec_abs_f64x4(var12[1, 0:4], var13[1, 0:4])
+        vec_abs_f64x4(var12[2, 0:4], var13[2, 0:4])
+        vec_abs_f64x4(var12[3, 0:4], var13[3, 0:4])
+        free(var13)
+        vec_add_red_f64x4(var16[0, 0:4], var12[0, 0:4])
+        vec_add_red_f64x4(var16[1, 0:4], var12[1, 0:4])
+        vec_add_red_f64x4(var16[2, 0:4], var12[2, 0:4])
+        vec_add_red_f64x4(var16[3, 0:4], var12[3, 0:4])
+        free(var12)
+    vec_add_red_f64x4(var10[0:4], var16[0, 0:4])
+    vec_add_red_f64x4(var10[0:4], var16[1, 0:4])
+    vec_add_red_f64x4(var10[0:4], var16[2, 0:4])
+    vec_add_red_f64x4(var10[0:4], var16[3, 0:4])
+    free(var16)
+    var17: f64[2, 4] @ VEC_AVX2
+    vec_zero_f64x4(var17[0, 0:4])
+    vec_zero_f64x4(var17[1, 0:4])
+    for ioiio in seq(0, ((3 + n) / 4 - 1) % 8 % 4 / 2):
+        var9: f64[2, 4] @ VEC_AVX2
+        var12: f64[2, 4] @ VEC_AVX2
+        var13: f64[2, 4] @ VEC_AVX2
+        var14: f64[2, 4] @ VEC_AVX2
+        vec_load_f64x4(
+            var9[0, 0:4],
+            x[16 * (((3 + n) / 4 - 1) % 8 / 4) + 32 * (((3 + n) / 4 - 1) / 8) +
+              8 * ioiio:16 * (((3 + n) / 4 - 1) % 8 / 4) + 32 *
+              (((3 + n) / 4 - 1) / 8) + 8 * ioiio + 4])
+        vec_load_f64x4(
+            var9[1, 0:4],
+            x[16 * (((3 + n) / 4 - 1) % 8 / 4) + 32 * (((3 + n) / 4 - 1) / 8) +
+              8 * ioiio + 4:16 * (((3 + n) / 4 - 1) % 8 / 4) + 32 *
+              (((3 + n) / 4 - 1) / 8) + 8 * ioiio + 8])
+        vec_copy_f64x4(var13[0, 0:4], var9[0, 0:4])
+        vec_copy_f64x4(var13[1, 0:4], var9[1, 0:4])
+        vec_copy_f64x4(var14[0, 0:4], var9[0, 0:4])
+        vec_copy_f64x4(var14[1, 0:4], var9[1, 0:4])
+        free(var14)
+        free(var9)
+        vec_abs_f64x4(var12[0, 0:4], var13[0, 0:4])
+        vec_abs_f64x4(var12[1, 0:4], var13[1, 0:4])
+        free(var13)
+        vec_add_red_f64x4(var17[0, 0:4], var12[0, 0:4])
+        vec_add_red_f64x4(var17[1, 0:4], var12[1, 0:4])
+        free(var12)
+    vec_add_red_f64x4(var10[0:4], var17[0, 0:4])
+    vec_add_red_f64x4(var10[0:4], var17[1, 0:4])
+    free(var17)
+    for ioiii in seq(0, ((3 + n) / 4 - 1) % 8 % 4 % 2):
+        var9: f64[4] @ VEC_AVX2
+        var12: f64[4] @ VEC_AVX2
+        var13: f64[4] @ VEC_AVX2
+        var14: f64[4] @ VEC_AVX2
+        vec_load_f64x4(
+            var9[0:4],
+            x[8 * (((3 + n) / 4 - 1) % 8 % 4 / 2) + 16 *
+              (((3 + n) / 4 - 1) % 8 / 4) + 32 * (((3 + n) / 4 - 1) / 8) +
+              4 * ioiii:8 * (((3 + n) / 4 - 1) % 8 % 4 / 2) + 16 *
+              (((3 + n) / 4 - 1) % 8 / 4) + 32 * (((3 + n) / 4 - 1) / 8) +
+              4 * ioiii + 4])
+        vec_copy_f64x4(var13[0:4], var9[0:4])
+        vec_copy_f64x4(var14[0:4], var9[0:4])
+        free(var14)
+        free(var9)
+        vec_abs_f64x4(var12[0:4], var13[0:4])
+        free(var13)
+        vec_add_red_f64x4(var10[0:4], var12[0:4])
+        free(var12)
+    for io in seq((3 + n) / 4 - 1, (3 + n) / 4):
+        var9: f64[4] @ VEC_AVX2
+        var12: f64[4] @ VEC_AVX2
+        var13: f64[4] @ VEC_AVX2
+        var14: f64[4] @ VEC_AVX2
+        vec_load_f64x4_pfx(-(4 * io) + n, var9[0:4], x[4 * io:4 + 4 * io])
+        vec_copy_f64x4_pfx(-(4 * io) + n, var13[0:4], var9[0:4])
+        vec_copy_f64x4_pfx(-(4 * io) + n, var14[0:4], var9[0:4])
+        free(var14)
+        free(var9)
+        vec_abs_f64x4_pfx(-(4 * io) + n, var12[0:4], var13[0:4])
+        free(var13)
+        vec_add_red_f64x4_pfx(-(4 * io) + n, var10[0:4], var12[0:4])
+        free(var12)
+    vec_reduce_add_scl_f64x4(result_, var10[0:4])
+    free(var10)
+    result = result_
+    free(result_)
+def exo_dasum_stride_any(n: size, x: [f64][n] @ DRAM, result: f64 @ DRAM):
+    result_: f64 @ DRAM
+    result_ = 0.0
+    for i in seq(0, n):
+        arg: f64 @ DRAM
+        arg = 0.0
+        arg_1: f64 @ DRAM
+        arg_1 = x[i]
+        arg_2: f64 @ DRAM
+        arg_2 = x[i]
+        arg_3: f64 @ DRAM
+        arg_3 = -x[i]
+        result_ += select(arg, arg_1, arg_2, arg_3)
+        free(arg_3)
+        free(arg_2)
+        free(arg_1)
+        free(arg)
+    result = result_
+    free(result_)
+def exo_sasum_stride_1(n: size, x: [f32][n] @ DRAM, result: f32 @ DRAM):
+    assert stride(x, 0) == 1
+    result_: f32 @ DRAM
+    result_ = 0.0
+    var1: f32[8] @ VEC_AVX2
+    vec_zero_f32x8(var1[0:8])
+    var6: f32[8, 8] @ VEC_AVX2
+    vec_zero_f32x8(var6[0, 0:8])
+    vec_zero_f32x8(var6[1, 0:8])
+    vec_zero_f32x8(var6[2, 0:8])
+    vec_zero_f32x8(var6[3, 0:8])
+    vec_zero_f32x8(var6[4, 0:8])
+    vec_zero_f32x8(var6[5, 0:8])
+    vec_zero_f32x8(var6[6, 0:8])
+    vec_zero_f32x8(var6[7, 0:8])
+    for ioo in seq(0, ((7 + n) / 8 - 1) / 8):
+        var0: f32[8, 8] @ VEC_AVX2
+        var3: f32[8, 8] @ VEC_AVX2
+        var4: f32[8, 8] @ VEC_AVX2
+        var5: f32[8, 8] @ VEC_AVX2
+        vec_load_f32x8(var0[0, 0:8], x[64 * ioo:8 + 64 * ioo])
+        vec_load_f32x8(var0[1, 0:8], x[8 + 64 * ioo:16 + 64 * ioo])
+        vec_load_f32x8(var0[2, 0:8], x[16 + 64 * ioo:24 + 64 * ioo])
+        vec_load_f32x8(var0[3, 0:8], x[24 + 64 * ioo:32 + 64 * ioo])
+        vec_load_f32x8(var0[4, 0:8], x[32 + 64 * ioo:40 + 64 * ioo])
+        vec_load_f32x8(var0[5, 0:8], x[40 + 64 * ioo:48 + 64 * ioo])
+        vec_load_f32x8(var0[6, 0:8], x[48 + 64 * ioo:56 + 64 * ioo])
+        vec_load_f32x8(var0[7, 0:8], x[56 + 64 * ioo:64 + 64 * ioo])
+        vec_copy_f32x8(var4[0, 0:8], var0[0, 0:8])
+        vec_copy_f32x8(var4[1, 0:8], var0[1, 0:8])
+        vec_copy_f32x8(var4[2, 0:8], var0[2, 0:8])
+        vec_copy_f32x8(var4[3, 0:8], var0[3, 0:8])
+        vec_copy_f32x8(var4[4, 0:8], var0[4, 0:8])
+        vec_copy_f32x8(var4[5, 0:8], var0[5, 0:8])
+        vec_copy_f32x8(var4[6, 0:8], var0[6, 0:8])
+        vec_copy_f32x8(var4[7, 0:8], var0[7, 0:8])
+        vec_copy_f32x8(var5[0, 0:8], var0[0, 0:8])
+        vec_copy_f32x8(var5[1, 0:8], var0[1, 0:8])
+        vec_copy_f32x8(var5[2, 0:8], var0[2, 0:8])
+        vec_copy_f32x8(var5[3, 0:8], var0[3, 0:8])
+        vec_copy_f32x8(var5[4, 0:8], var0[4, 0:8])
+        vec_copy_f32x8(var5[5, 0:8], var0[5, 0:8])
+        vec_copy_f32x8(var5[6, 0:8], var0[6, 0:8])
+        vec_copy_f32x8(var5[7, 0:8], var0[7, 0:8])
+        free(var5)
+        free(var0)
+        vec_abs_f32x8(var3[0, 0:8], var4[0, 0:8])
+        vec_abs_f32x8(var3[1, 0:8], var4[1, 0:8])
+        vec_abs_f32x8(var3[2, 0:8], var4[2, 0:8])
+        vec_abs_f32x8(var3[3, 0:8], var4[3, 0:8])
+        vec_abs_f32x8(var3[4, 0:8], var4[4, 0:8])
+        vec_abs_f32x8(var3[5, 0:8], var4[5, 0:8])
+        vec_abs_f32x8(var3[6, 0:8], var4[6, 0:8])
+        vec_abs_f32x8(var3[7, 0:8], var4[7, 0:8])
+        free(var4)
+        vec_add_red_f32x8(var6[0, 0:8], var3[0, 0:8])
+        vec_add_red_f32x8(var6[1, 0:8], var3[1, 0:8])
+        vec_add_red_f32x8(var6[2, 0:8], var3[2, 0:8])
+        vec_add_red_f32x8(var6[3, 0:8], var3[3, 0:8])
+        vec_add_red_f32x8(var6[4, 0:8], var3[4, 0:8])
+        vec_add_red_f32x8(var6[5, 0:8], var3[5, 0:8])
+        vec_add_red_f32x8(var6[6, 0:8], var3[6, 0:8])
+        vec_add_red_f32x8(var6[7, 0:8], var3[7, 0:8])
+        free(var3)
+    vec_add_red_f32x8(var1[0:8], var6[0, 0:8])
+    vec_add_red_f32x8(var1[0:8], var6[1, 0:8])
+    vec_add_red_f32x8(var1[0:8], var6[2, 0:8])
+    vec_add_red_f32x8(var1[0:8], var6[3, 0:8])
+    vec_add_red_f32x8(var1[0:8], var6[4, 0:8])
+    vec_add_red_f32x8(var1[0:8], var6[5, 0:8])
+    vec_add_red_f32x8(var1[0:8], var6[6, 0:8])
+    vec_add_red_f32x8(var1[0:8], var6[7, 0:8])
+    free(var6)
+    var7: f32[4, 8] @ VEC_AVX2
+    vec_zero_f32x8(var7[0, 0:8])
+    vec_zero_f32x8(var7[1, 0:8])
+    vec_zero_f32x8(var7[2, 0:8])
+    vec_zero_f32x8(var7[3, 0:8])
+    for ioio in seq(0, ((7 + n) / 8 - 1) % 8 / 4):
+        var0: f32[4, 8] @ VEC_AVX2
+        var3: f32[4, 8] @ VEC_AVX2
+        var4: f32[4, 8] @ VEC_AVX2
+        var5: f32[4, 8] @ VEC_AVX2
+        vec_load_f32x8(
+            var0[0, 0:8], x[64 * (((7 + n) / 8 - 1) / 8) + 32 * ioio:64 *
+                            (((7 + n) / 8 - 1) / 8) + 32 * ioio + 8])
+        vec_load_f32x8(
+            var0[1, 0:8], x[64 * (((7 + n) / 8 - 1) / 8) + 32 * ioio + 8:64 *
+                            (((7 + n) / 8 - 1) / 8) + 32 * ioio + 16])
+        vec_load_f32x8(
+            var0[2, 0:8], x[64 * (((7 + n) / 8 - 1) / 8) + 32 * ioio + 16:64 *
+                            (((7 + n) / 8 - 1) / 8) + 32 * ioio + 24])
+        vec_load_f32x8(
+            var0[3, 0:8], x[64 * (((7 + n) / 8 - 1) / 8) + 32 * ioio + 24:64 *
+                            (((7 + n) / 8 - 1) / 8) + 32 * ioio + 32])
+        vec_copy_f32x8(var4[0, 0:8], var0[0, 0:8])
+        vec_copy_f32x8(var4[1, 0:8], var0[1, 0:8])
+        vec_copy_f32x8(var4[2, 0:8], var0[2, 0:8])
+        vec_copy_f32x8(var4[3, 0:8], var0[3, 0:8])
+        vec_copy_f32x8(var5[0, 0:8], var0[0, 0:8])
+        vec_copy_f32x8(var5[1, 0:8], var0[1, 0:8])
+        vec_copy_f32x8(var5[2, 0:8], var0[2, 0:8])
+        vec_copy_f32x8(var5[3, 0:8], var0[3, 0:8])
+        free(var5)
+        free(var0)
+        vec_abs_f32x8(var3[0, 0:8], var4[0, 0:8])
+        vec_abs_f32x8(var3[1, 0:8], var4[1, 0:8])
+        vec_abs_f32x8(var3[2, 0:8], var4[2, 0:8])
+        vec_abs_f32x8(var3[3, 0:8], var4[3, 0:8])
+        free(var4)
+        vec_add_red_f32x8(var7[0, 0:8], var3[0, 0:8])
+        vec_add_red_f32x8(var7[1, 0:8], var3[1, 0:8])
+        vec_add_red_f32x8(var7[2, 0:8], var3[2, 0:8])
+        vec_add_red_f32x8(var7[3, 0:8], var3[3, 0:8])
+        free(var3)
+    vec_add_red_f32x8(var1[0:8], var7[0, 0:8])
+    vec_add_red_f32x8(var1[0:8], var7[1, 0:8])
+    vec_add_red_f32x8(var1[0:8], var7[2, 0:8])
+    vec_add_red_f32x8(var1[0:8], var7[3, 0:8])
+    free(var7)
+    var8: f32[2, 8] @ VEC_AVX2
+    vec_zero_f32x8(var8[0, 0:8])
+    vec_zero_f32x8(var8[1, 0:8])
+    for ioiio in seq(0, ((7 + n) / 8 - 1) % 8 % 4 / 2):
+        var0: f32[2, 8] @ VEC_AVX2
+        var3: f32[2, 8] @ VEC_AVX2
+        var4: f32[2, 8] @ VEC_AVX2
+        var5: f32[2, 8] @ VEC_AVX2
+        vec_load_f32x8(
+            var0[0, 0:8],
+            x[32 * (((7 + n) / 8 - 1) % 8 / 4) + 64 * (((7 + n) / 8 - 1) / 8) +
+              16 * ioiio:32 * (((7 + n) / 8 - 1) % 8 / 4) + 64 *
+              (((7 + n) / 8 - 1) / 8) + 16 * ioiio + 8])
+        vec_load_f32x8(
+            var0[1, 0:8],
+            x[32 * (((7 + n) / 8 - 1) % 8 / 4) + 64 * (((7 + n) / 8 - 1) / 8) +
+              16 * ioiio + 8:32 * (((7 + n) / 8 - 1) % 8 / 4) + 64 *
+              (((7 + n) / 8 - 1) / 8) + 16 * ioiio + 16])
+        vec_copy_f32x8(var4[0, 0:8], var0[0, 0:8])
+        vec_copy_f32x8(var4[1, 0:8], var0[1, 0:8])
+        vec_copy_f32x8(var5[0, 0:8], var0[0, 0:8])
+        vec_copy_f32x8(var5[1, 0:8], var0[1, 0:8])
+        free(var5)
+        free(var0)
+        vec_abs_f32x8(var3[0, 0:8], var4[0, 0:8])
+        vec_abs_f32x8(var3[1, 0:8], var4[1, 0:8])
+        free(var4)
+        vec_add_red_f32x8(var8[0, 0:8], var3[0, 0:8])
+        vec_add_red_f32x8(var8[1, 0:8], var3[1, 0:8])
+        free(var3)
+    vec_add_red_f32x8(var1[0:8], var8[0, 0:8])
+    vec_add_red_f32x8(var1[0:8], var8[1, 0:8])
+    free(var8)
+    for ioiii in seq(0, ((7 + n) / 8 - 1) % 8 % 4 % 2):
+        var0: f32[8] @ VEC_AVX2
+        var3: f32[8] @ VEC_AVX2
+        var4: f32[8] @ VEC_AVX2
+        var5: f32[8] @ VEC_AVX2
+        vec_load_f32x8(
+            var0[0:8],
+            x[16 * (((7 + n) / 8 - 1) % 8 % 4 / 2) + 32 *
+              (((7 + n) / 8 - 1) % 8 / 4) + 64 * (((7 + n) / 8 - 1) / 8) +
+              8 * ioiii:16 * (((7 + n) / 8 - 1) % 8 % 4 / 2) + 32 *
+              (((7 + n) / 8 - 1) % 8 / 4) + 64 * (((7 + n) / 8 - 1) / 8) +
+              8 * ioiii + 8])
+        vec_copy_f32x8(var4[0:8], var0[0:8])
+        vec_copy_f32x8(var5[0:8], var0[0:8])
+        free(var5)
+        free(var0)
+        vec_abs_f32x8(var3[0:8], var4[0:8])
+        free(var4)
+        vec_add_red_f32x8(var1[0:8], var3[0:8])
+        free(var3)
+    for io in seq((7 + n) / 8 - 1, (7 + n) / 8):
+        var0: f32[8] @ VEC_AVX2
+        var3: f32[8] @ VEC_AVX2
+        var4: f32[8] @ VEC_AVX2
+        var5: f32[8] @ VEC_AVX2
+        vec_load_f32x8_pfx(-(8 * io) + n, var0[0:8], x[8 * io:8 + 8 * io])
+        vec_copy_f32x8_pfx(-(8 * io) + n, var4[0:8], var0[0:8])
+        vec_copy_f32x8_pfx(-(8 * io) + n, var5[0:8], var0[0:8])
+        free(var5)
+        free(var0)
+        vec_abs_f32x8_pfx(-(8 * io) + n, var3[0:8], var4[0:8])
+        free(var4)
+        vec_add_red_f32x8_pfx(-(8 * io) + n, var1[0:8], var3[0:8])
+        free(var3)
+    vec_reduce_add_scl_f32x8(result_, var1[0:8])
+    free(var1)
+    result = result_
+    free(result_)
+def exo_sasum_stride_any(n: size, x: [f32][n] @ DRAM, result: f32 @ DRAM):
+    result_: f32 @ DRAM
+    result_ = 0.0
+    for i in seq(0, n):
+        arg: f32 @ DRAM
+        arg = 0.0
+        arg_1: f32 @ DRAM
+        arg_1 = x[i]
+        arg_2: f32 @ DRAM
+        arg_2 = x[i]
+        arg_3: f32 @ DRAM
+        arg_3 = -x[i]
+        result_ += select(arg, arg_1, arg_2, arg_3)
+        free(arg_3)
+        free(arg_2)
+        free(arg_1)
+        free(arg)
+    result = result_
+    free(result_)
+def vec_abs_f32x8(dst: [f32][8] @ VEC_AVX2, src: [f32][8] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_and_ps({src_data}, _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF)));
+    assert stride(dst, 0) == 1
+    assert stride(src, 0) == 1
+    for i in seq(0, 8):
+        dst[i] = select(0.0, src[i], src[i], -src[i])
+def vec_abs_f32x8_pfx(m: size, dst: [f32][8] @ VEC_AVX2,
+                      src: [f32][8] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_and_ps({src_data}, _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF)));
+    assert m <= 8
+    assert stride(dst, 0) == 1
+    assert stride(src, 0) == 1
+    for i in seq(0, 8):
+        if i < m:
+            dst[i] = select(0.0, src[i], src[i], -src[i])
+def vec_abs_f64x4(dst: [f64][4] @ VEC_AVX2, src: [f64][4] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_and_pd({src_data}, _mm256_castsi256_pd(_mm256_set1_epi64x(0x7FFFFFFFFFFFFFFFLL)));
+    assert stride(dst, 0) == 1
+    assert stride(src, 0) == 1
+    for i in seq(0, 4):
+        dst[i] = select(0.0, src[i], src[i], -src[i])
+def vec_abs_f64x4_pfx(m: size, dst: [f64][4] @ VEC_AVX2,
+                      src: [f64][4] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_and_pd({src_data}, _mm256_castsi256_pd(_mm256_set1_epi64x(0x7FFFFFFFFFFFFFFFLL)));
+    assert m <= 4
+    assert stride(dst, 0) == 1
+    assert stride(src, 0) == 1
+    for i in seq(0, 4):
+        if i < m:
+            dst[i] = select(0.0, src[i], src[i], -src[i])
+def vec_add_red_f32x8(dst: [f32][8] @ VEC_AVX2, src: [f32][8] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_add_ps({dst_data}, {src_data});
+    assert stride(dst, 0) == 1
+    assert stride(src, 0) == 1
+    for i in seq(0, 8):
+        dst[i] += src[i]
+def vec_add_red_f32x8_pfx(m: size, dst: [f32][8] @ VEC_AVX2,
+                          src: [f32][8] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_add_ps({dst_data}, {src_data});
+    assert m <= 8
+    assert stride(dst, 0) == 1
+    assert stride(src, 0) == 1
+    for i in seq(0, 8):
+        if i < m:
+            dst[i] += src[i]
+def vec_add_red_f64x4(dst: [f64][4] @ VEC_AVX2, src: [f64][4] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_add_pd({dst_data}, {src_data});
+    assert stride(dst, 0) == 1
+    assert stride(src, 0) == 1
+    for i in seq(0, 4):
+        dst[i] += src[i]
+def vec_add_red_f64x4_pfx(m: size, dst: [f64][4] @ VEC_AVX2,
+                          src: [f64][4] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_add_pd({dst_data}, {src_data});
+    assert m <= 4
+    assert stride(dst, 0) == 1
+    assert stride(src, 0) == 1
+    for i in seq(0, 4):
+        if i < m:
+            dst[i] += src[i]
+def vec_copy_f32x8(dst: [f32][8] @ VEC_AVX2, src: [f32][8] @ VEC_AVX2):
+    # @instr {dst_data} = {src_data};
+    assert stride(dst, 0) == 1
+    assert stride(src, 0) == 1
+    for i in seq(0, 8):
+        dst[i] = src[i]
+def vec_copy_f32x8_pfx(m: size, dst: [f32][8] @ VEC_AVX2,
+                       src: [f32][8] @ VEC_AVX2):
+    # @instr {dst_data} = {src_data};
+    assert m <= 8
+    assert stride(dst, 0) == 1
+    assert stride(src, 0) == 1
+    for i in seq(0, 8):
+        if i < m:
+            dst[i] = src[i]
+def vec_copy_f64x4(dst: [f64][4] @ VEC_AVX2, src: [f64][4] @ VEC_AVX2):
+    # @instr {dst_data} = {src_data};
+    assert stride(dst, 0) == 1
+    assert stride(src, 0) == 1
+    for i in seq(0, 4):
+        dst[i] = src[i]
+def vec_copy_f64x4_pfx(m: size, dst: [f64][4] @ VEC_AVX2,
+                       src: [f64][4] @ VEC_AVX2):
+    # @instr {dst_data} = {src_data};
+    assert m <= 4
+    assert stride(dst, 0) == 1
+    assert stride(src, 0) == 1
+    for i in seq(0, 4):
+        if i < m:
+            dst[i] = src[i]
+def vec_load_f32x8(dst: [f32][8] @ VEC_AVX2, src: [f32][8] @ DRAM):
+    # @instr {dst_data} = _mm256_loadu_ps(&{src_data});
+    assert stride(dst, 0) == 1
+    assert stride(src, 0) == 1
+    for i in seq(0, 8):
+        dst[i] = src[i]
+def vec_load_f32x8_pfx(m: size, dst: [f32][8] @ VEC_AVX2,
+                       src: [f32][8] @ DRAM):
+    # @instr {dst_data} = _mm256_maskload_ps(&{src_data}, mm256_prefix_mask_epi32({m}));
+    assert m <= 8
+    assert stride(dst, 0) == 1
+    assert stride(src, 0) == 1
+    for i in seq(0, 8):
+        if i < m:
+            dst[i] = src[i]
+def vec_load_f64x4(dst: [f64][4] @ VEC_AVX2, src: [f64][4] @ DRAM):
+    # @instr {dst_data} = _mm256_loadu_pd(&{src_data});
+    assert stride(dst, 0) == 1
+    assert stride(src, 0) == 1
+    for i in seq(0, 4):
+        dst[i] = src[i]
+def vec_load_f64x4_pfx(m: size, dst: [f64][4] @ VEC_AVX2,
+                       src: [f64][4] @ DRAM):
+    # @instr {dst_data} = _mm256_maskload_pd(&{src_data}, mm256_prefix_mask_epi64x({m}));
+    assert m <= 4
+    assert stride(dst, 0) == 1
+    assert stride(src, 0) == 1
+    for i in seq(0, 4):
+        if i < m:
+            dst[i] = src[i]
+def vec_reduce_add_scl_f32x8(dst: f32 @ DRAM, src: [f32][8] @ VEC_AVX2):
+    # @instr *{dst_data} = mm256_reduce_add_ps({src_data});
+    assert stride(src, 0) == 1
+    for i in seq(0, 8):
+        dst += src[i]
+def vec_reduce_add_scl_f64x4(dst: f64 @ DRAM, src: [f64][4] @ VEC_AVX2):
+    # @instr *{dst_data} = mm256_reduce_add_pd({src_data});
+    assert stride(src, 0) == 1
+    for i in seq(0, 4):
+        dst += src[i]
+def vec_zero_f32x8(dst: [f32][8] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_setzero_ps();
+    assert stride(dst, 0) == 1
+    for i in seq(0, 8):
+        dst[i] = 0.0
+def vec_zero_f64x4(dst: [f64][4] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_setzero_pd();
+    assert stride(dst, 0) == 1
+    for i in seq(0, 4):
+        dst[i] = 0.0

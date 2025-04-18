@@ -36,7 +36,6 @@ from xdsl.dialects.builtin import (
     MemRefType,
     ModuleOp,
     StridedLayoutAttr,
-    StringAttr,
     DenseIntOrFPElementsAttr,
     f16,
     f32,
@@ -51,14 +50,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.func import CallOp, FuncOp, ReturnOp
 from xdsl.dialects.memref import (
-    AllocOp,
-    DeallocOp,
-    LoadOp,
-    StoreOp,
-    GlobalOp,
-    GetGlobalOp,
-    SubviewOp,
-    ReinterpretCastOp,
     CastOp as MemrefCastOp,
 )
 from xdsl.dialects.scf import ForOp, IfOp, YieldOp
@@ -66,6 +57,17 @@ from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, BlockArgument, OpResult, Region, SSAValue, Attribute
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.scoped_dict import ScopedDict
+
+from exomlir.dialects.exo import (
+    AssignOp,
+    FreeOp,
+    IntervalOp,
+    ReadOp,
+    ReduceOp,
+    WindowOp,
+    AllocOp,
+)
+
 
 MemRefTypeI8: TypeAlias = MemRefType[I8]
 MemRefTypeI16: TypeAlias = MemRefType[I16]
@@ -206,14 +208,6 @@ class IRGenerator:
         self.seen_procs.add(procedure.name)
 
         input_types = [self.get_type(arg.type) for arg in procedure.args]
-        # scalar arguments with memory annotations should be treated as memrefs
-        input_types = [
-            self.convert_scalar_type_to_memref_type(t)
-            if not isinstance(t, MemRefType) and arg.mem is not None
-            else t
-            for t, arg in zip(input_types, procedure.args)
-        ]
-
         func_type = FunctionType.from_lists(input_types, [])
 
         # instantiate builder at module level
@@ -284,43 +278,14 @@ class IRGenerator:
         value = self.generate_expr(assign.rhs)
         memref = self.get_sym(assign.name)
 
-        assert isinstance(memref.type, MemRefType), (assign.name, memref.type)
-
-        # special case for scalar assignments
-        if (
-            len(idx) == 0
-            and len(memref.type.shape) == 1
-            and memref.type.shape.data[0] == 1
-        ):
-            idx = [zero := ConstantOp(IntegerAttr(0, IndexType()))]
-            self.builder.insert(zero)
-
-        self.builder.insert(StoreOp(operands=[value, memref, idx]))
+        self.builder.insert(AssignOp(memref, idx, value))
 
     def generate_reduce_stmt(self, reduce):
+        memref = self.get_sym(reduce.name)
         idx = [self.cast_to_index(i) for i in self.generate_expr_list(reduce.idx)]
         value = self.generate_expr(reduce.rhs)
-        memref = self.get_sym(reduce.name)
 
-        assert isinstance(memref.type, MemRefType), (reduce.name, memref.type)
-
-        # special case for scalar assignments
-        if (
-            len(idx) == 0
-            and len(memref.type.shape) == 1
-            and memref.type.shape.data[0] == 1
-        ):
-            idx = [zero := ConstantOp(IntegerAttr(0, IndexType()))]
-            self.builder.insert(zero)
-
-        # load value from memory, add rhs, store back
-        self.builder.insert(
-            (
-                load := LoadOp(operands=[memref, idx], result_types=[value.type]),
-                inc := AddfOp(load.res, value, result_type=value.type),
-                StoreOp(operands=[inc.result, memref, idx]),
-            )
-        )
+        self.builder.insert(ReduceOp(memref, idx, value))
 
     def generate_write_config_stmt(self, write_config):
         # rhs = self.generate_expr(write_config.rhs)
@@ -382,31 +347,12 @@ class IRGenerator:
 
     def generate_alloc_stmt(self, alloc):
         type = self.get_type(alloc.type)
-
-        if isinstance(type, MemRefType):
-            op = AllocOp([], [], result_type=type)
-        else:
-            # alloc the global and immediately load it
-            ref_type = self.convert_scalar_type_to_memref_type(type)
-            glbl = GlobalOp(
-                properties={
-                    "sym_name": StringAttr(alloc.name.name()),
-                    "sym_visibility": StringAttr("private"),
-                    "type": ref_type,
-                    "alignment": IntegerAttr(self.get_alignment(type), 64),
-                    "initial_value": self.get_scalar_default_memref_value(type),
-                }
-            )
-            self.builder.insert(glbl)
-            op = GetGlobalOp(alloc.name.name(), return_type=ref_type)
-
+        self.builder.insert(op := AllocOp(alloc.mem.name(), type))
         self.declare_value(alloc.name, op.results[0])
-        self.builder.insert(op)
+        return op.result
 
     def generate_free_stmt(self, free):
-        self.builder.insert(
-            DeallocOp(operands=[self.get_sym(free.name)], result_types=[])
-        )
+        self.builder.insert(FreeOp(self.get_sym(free.name), free.mem.name()))
 
     def generate_call_stmt(self, call):
         self.generate_procedure(call.f)
@@ -456,19 +402,11 @@ class IRGenerator:
 
         operand = self.get_sym(read.name)
 
-        # if operand is a tensor, we need to load from memory
-        if isinstance(operand.type, MemRefType):
-            read = LoadOp(
-                operands=[self.get_sym(read.name), idx],
-                result_types=[self.get_type(read.type)],
-            )
-            self.builder.insert(read)
+        self.builder.insert(
+            op := ReadOp(operand, idx, result_type=self.get_type(read.type))
+        )
 
-            return read.res
-
-        # otherwise, we can just return the operand
-        else:
-            return operand
+        return op.result
 
     def generate_const_expr(self, const):
         type = self.get_type(const.type)
@@ -590,64 +528,28 @@ class IRGenerator:
         return binop.result
 
     def generate_window_expr(self, window):
-        # need 1 for fixed-size window indexes
-        one = ConstantOp(IntegerAttr(1, IndexType()))
-        self.builder.insert(one)
-
+        # compute indices and result type
         idx = [self.generate_w_access(w_access) for w_access in window.idx]
-
-        src_type = self.get_type(window.type.src_type)
         dest_type = self.get_type(window.type.as_tensor)
 
-        subview_type = MemRefType(
-            src_type.element_type,
-            [1 if len(idx) == 1 else -1 for idx in idx],
-            StridedLayoutAttr([1 for _ in src_type.shape], None),
-        )
+        self.builder.insert(op := WindowOp(self.get_sym(window.name), idx, dest_type))
 
-        # take subview
-        op = SubviewOp.get(
-            self.get_sym(window.name),
-            # offset is lower bound
-            [idx[0] for idx in idx],
-            # size for pt accesses = 1
-            # size for interval accesses = hi - lo
-            [1 if len(idx) == 1 else idx[1] for idx in idx],
-            [1 for _ in idx],
-            subview_type,
-        )
-
-        # drop static rank info
-        assert op.result is not None
-        assert dest_type is not None
-        assert dest_type.get_shape() is not None
-
-        cast = ReinterpretCastOp.from_dynamic(
-            op.result,
-            [0],
-            dest_type.get_shape(),
-            [1] * len(dest_type.shape),
-            dest_type,
-        )
-
-        self.builder.insert(op)
-        self.builder.insert(cast)
-
-        return cast.result
+        return op.result
 
     def generate_w_access(self, w_access):
         if isinstance(w_access, LoopIR.Point):
-            return (self.cast_to_index(self.generate_expr(w_access.pt)),)
-        elif isinstance(w_access, LoopIR.Interval):
-            lo = self.cast_to_index(self.generate_expr(w_access.lo))
-            hi = self.cast_to_index(self.generate_expr(w_access.hi))
+            return self.cast_to_index(self.generate_expr(w_access.pt))
 
-            size_op = SubiOp(hi, lo, result_type=lo.type)
-            self.builder.insert(size_op)
+        assert isinstance(w_access, LoopIR.Interval), (
+            f"Unknown window access type '{type(w_access)}' for '{w_access}'"
+        )
 
-            return lo, size_op.result
+        lo = self.cast_to_index(self.generate_expr(w_access.lo))
+        hi = self.cast_to_index(self.generate_expr(w_access.hi))
 
-        raise AssertionError("Entered unreachable code")
+        self.builder.insert(op := IntervalOp(lo, hi))
+
+        return op.result
 
     def generate_stride_expr(self, stride):
         raise NotImplementedError("stride expressions are not yet supported")

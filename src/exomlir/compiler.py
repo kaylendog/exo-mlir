@@ -20,7 +20,9 @@ from xdsl.transforms.common_subexpression_elimination import (
     CommonSubexpressionElimination,
 )
 
+from exomlir.dialects.exo import Exo
 from exomlir.generator import IRGenerator
+from exomlir.rewrites.inline_exo import InlineExoPass
 
 logger = logging.getLogger("exo-mlir")
 
@@ -32,6 +34,7 @@ def context() -> Context:
     ctx.load_dialect(func.Func)
     ctx.load_dialect(memref.MemRef)
     ctx.load_dialect(scf.Scf)
+    ctx.load_dialect(Exo)
     return ctx
 
 
@@ -131,6 +134,7 @@ def transform(ctx: Context, module: ModuleOp) -> ModuleOp:
     """
     Apply transformations to an MLIR module.
     """
+    InlineExoPass().apply(ctx, module)
     CanonicalizePass().apply(ctx, module)
     CommonSubexpressionElimination().apply(ctx, module)
 
