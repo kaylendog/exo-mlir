@@ -91,18 +91,18 @@ class FreeOp(IRDLOperation):
 class AssignOp(IRDLOperation):
     name = "exo.assign"
 
-    memref = operand_def()
+    input = operand_def()
     indices = var_operand_def(IndexType)
     value = operand_def()
 
     def __init__(
         self,
-        memref: SSAValue | Operation,
+        input: SSAValue | Operation,
         indices: Sequence[SSAValue | Operation],
         value: SSAValue | Operation,
     ) -> None:
         super().__init__(
-            operands=[SSAValue.get(memref), indices, value], result_types=[]
+            operands=[SSAValue.get(input), indices, value], result_types=[]
         )
 
 
@@ -110,18 +110,18 @@ class AssignOp(IRDLOperation):
 class ReduceOp(IRDLOperation):
     name = "exo.reduce"
 
-    memref = operand_def()
+    input = operand_def()
     indices = var_operand_def(IndexType)
     value = operand_def()
 
     def __init__(
         self,
-        memref: SSAValue | Operation,
+        input: SSAValue | Operation,
         indices: Sequence[SSAValue | Operation],
         value: SSAValue | Operation,
     ) -> None:
         super().__init__(
-            operands=[SSAValue.get(memref), indices, value], result_types=[]
+            operands=[SSAValue.get(input), indices, value], result_types=[]
         )
 
 
@@ -183,7 +183,7 @@ class WindowOp(IRDLOperation):
 
     name = "exo.window"
 
-    memref = operand_def(
+    input = operand_def(
         MemRefType.constr(element_type=AnyAttr()),
     )
     indices = var_operand_def()

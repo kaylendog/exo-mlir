@@ -35,8 +35,9 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     MemRefType,
     ModuleOp,
+    NoneAttr,
     StridedLayoutAttr,
-    DenseIntOrFPElementsAttr,
+    StringAttr,
     f16,
     f32,
     f64,
@@ -188,6 +189,9 @@ class IRGenerator:
         return result
 
     def generate(self, procs) -> ModuleOp:
+        """
+        Generate the MLIR module from the given procedures and verify it.
+        """
         for proc in procs:
             self.generate_procedure(proc)
 
@@ -202,12 +206,26 @@ class IRGenerator:
         return self.module
 
     def generate_procedure(self, procedure):
+        """Generate a procedure."""
+
         if procedure.name in self.seen_procs:
             return
 
         self.seen_procs.add(procedure.name)
 
         input_types = [self.get_type(arg.type) for arg in procedure.args]
+        input_types = [
+            MemRefType(
+                ty.element_type,
+                ty.shape,
+                ty.layout,
+                StringAttr(arg.mem.name()),
+            )
+            if isinstance(ty, MemRefType)
+            else ty
+            for (ty, arg) in zip(input_types, procedure.args)
+        ]
+
         func_type = FunctionType.from_lists(input_types, [])
 
         # instantiate builder at module level
@@ -225,7 +243,7 @@ class IRGenerator:
         self.symbol_table = ScopedDict[str, SSAValue]()
 
         # initialise function block
-        block = Block(arg_types=[self.get_type(arg.type) for arg in procedure.args])
+        block = Block(arg_types=input_types)
         self.builder = Builder(insertion_point=InsertPoint.at_end(block))
 
         # add arguments to symbol table
@@ -346,7 +364,7 @@ class IRGenerator:
         self.builder.insert(ForOp(lo, hi, step.result, [], Region(loop_block)))
 
     def generate_alloc_stmt(self, alloc):
-        type = self.get_type(alloc.type)
+        type = self.get_type(alloc.type, StringAttr(alloc.mem.name()))
         self.builder.insert(op := AllocOp(alloc.mem.name(), type))
         self.declare_value(alloc.name, op.results[0])
         return op.result
@@ -365,7 +383,10 @@ class IRGenerator:
 
         # build arguments
         args = [
-            self.cast_to(self.generate_expr(call_arg), self.get_type(proc_arg.type))
+            self.cast_to(
+                self.generate_expr(call_arg),
+                self.get_type(proc_arg.type, StringAttr(proc_arg.mem.name())),
+            )
             for (call_arg, proc_arg) in zip(call.args, call.f.args)
         ]
 
@@ -426,6 +447,10 @@ class IRGenerator:
         return const.result
 
     def generate_usub_expr(self, usub):
+        """
+        Generate a unary negation expression.
+        """
+
         expr = self.generate_expr(usub.arg)
         # float case
         if self.get_type(usub.type) in [f16, f32, f64]:
@@ -442,6 +467,10 @@ class IRGenerator:
         return usub.result
 
     def generate_binop_expr(self, binop):
+        """
+        Generate a binary operation expression.
+        """
+
         type = self.get_type(binop.type)
 
         if type in [f16, f32, f64]:
@@ -454,6 +483,10 @@ class IRGenerator:
             raise IRGeneratorError(f"Unknown type '{type.name}'")
 
     def generate_binop_expr_float(self, binop):
+        """
+        Generate a floating point binary operation expression.
+        """
+
         lhs = self.generate_expr(binop.lhs)
         rhs = self.generate_expr(binop.rhs)
         type = self.get_type(binop.type)
@@ -473,6 +506,10 @@ class IRGenerator:
         return binop.result
 
     def generate_binop_expr_int(self, binop):
+        """
+        Generate an integer binary operation expression.
+        """
+
         type = self.get_type(binop.type)
         lhs = self.cast_to(self.generate_expr(binop.lhs), type)
         rhs = self.cast_to(self.generate_expr(binop.rhs), type)
@@ -530,7 +567,10 @@ class IRGenerator:
     def generate_window_expr(self, window):
         # compute indices and result type
         idx = [self.generate_w_access(w_access) for w_access in window.idx]
-        dest_type = self.get_type(window.type.as_tensor)
+
+        input = self.get_sym(window.name)
+        assert isinstance(input.type, MemRefType)
+        dest_type = self.get_type(window.type.as_tensor, input.type.memory_space)
 
         self.builder.insert(op := WindowOp(self.get_sym(window.name), idx, dest_type))
 
@@ -576,7 +616,11 @@ class IRGenerator:
     def generate_read_config_expr(self, read_config):
         raise NotImplementedError()
 
-    def get_type(self, t):
+    def get_type(self, t, mem_space=StringAttr("DRAM")) -> Attribute:
+        """
+        Get the type of a LoopIR type as an MLIR type.
+        """
+
         # mlir
         if isinstance(t, SSAValue):
             return t.type
@@ -611,17 +655,17 @@ class IRGenerator:
             strides = StridedLayoutAttr([1 for _ in shape])
 
             if inner == f16:
-                return MemRefTypeF16(f16, shape, strides)
+                return MemRefTypeF16(f16, shape, strides, mem_space)
             elif inner == f32:
-                return MemRefTypeF32(f32, shape, strides)
+                return MemRefTypeF32(f32, shape, strides, mem_space)
             elif inner == f64:
-                return MemRefTypeF64(f64, shape, strides)
+                return MemRefTypeF64(f64, shape, strides, mem_space)
             elif inner == i8:
-                return MemRefTypeI8(i8, shape, strides)
+                return MemRefTypeI8(i8, shape, strides, mem_space)
             elif inner == i16:
-                return MemRefTypeI16(i16, shape, strides)
+                return MemRefTypeI16(i16, shape, strides, mem_space)
             elif inner == i32:
-                return MemRefTypeI32(i32, shape, strides)
+                return MemRefTypeI32(i32, shape, strides, mem_space)
             else:
                 raise IRGeneratorError("Entered unreachable code")
 
@@ -629,6 +673,9 @@ class IRGenerator:
             raise IRGeneratorError(f"Unknown type '{t}'")
 
     def get_shape(self, type) -> list[IntegerAttr]:
+        """
+        Get the shape of a tensor type as a list of integer attributes.
+        """
         assert isinstance(type, T.Tensor)
 
         def attr_from_expr(expr):
@@ -640,50 +687,3 @@ class IRGenerator:
                 raise IRGeneratorError(f"Invalid shape argument {expr}")
 
         return [attr_from_expr(expr) for expr in type.shape()]
-
-    def get_alignment(self, type):
-        # TODO: check that these are correct
-        if type in [f16, f32, f64]:
-            return 4
-        elif type in [i8, i16, i32]:
-            return 1
-        else:
-            raise IRGeneratorError(
-                f"Type '{type.name}' does not have a known alignment"
-            )
-
-    def convert_scalar_type_to_memref_type(self, type):
-        type_to_memref = {
-            f16: MemRefTypeF16(f16, [IntAttr(1)]),
-            f32: MemRefTypeF32(f32, [IntAttr(1)]),
-            f64: MemRefTypeF64(f64, [IntAttr(1)]),
-            i8: MemRefTypeI8(i8, [IntAttr(1)]),
-            i16: MemRefTypeI16(i16, [IntAttr(1)]),
-            i32: MemRefTypeI32(i32, [IntAttr(1)]),
-        }
-
-        if type in type_to_memref:
-            return type_to_memref[type]
-        else:
-            raise IRGeneratorError(f"Bad scalar type '{type.name}'")
-
-    def get_scalar_default_memref_value(self, type):
-        memref_type = self.convert_scalar_type_to_memref_type(type)
-        if type in [f16, f32, f64]:
-            return DenseIntOrFPElementsAttr.create_dense_float(
-                memref_type, [FloatAttr(0.0, 32)]
-            )
-        elif type in [i8, i16, i32]:
-            return DenseIntOrFPElementsAttr.create_dense_int(memref_type, [IntAttr(0)])
-        else:
-            raise IRGeneratorError(f"Bad scalar type '{type.name}'")
-
-    def get_dynamic_ranked_memref(self, elem_type, rank) -> MemRefType:
-        """
-        Returns a MemRefType with static rank, but dynamic shape and striding information.
-        """
-        return MemRefType(
-            elem_type,
-            [-1 for _ in range(rank)],
-            StridedLayoutAttr([-1 for _ in range(rank)]),
-        )

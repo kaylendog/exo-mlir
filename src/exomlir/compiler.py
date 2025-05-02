@@ -19,10 +19,15 @@ from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.common_subexpression_elimination import (
     CommonSubexpressionElimination,
 )
+from xdsl.transforms.convert_scf_to_cf import ConvertScfToCf
+from xdsl.transforms.convert_memref_to_ptr import ConvertMemRefToPtr
+from xdsl.transforms.convert_ptr_to_llvm import ConvertPtrToLLVMPass
 
 from exomlir.dialects.exo import Exo
 from exomlir.generator import IRGenerator
-from exomlir.rewrites.inline_exo import InlineExoPass
+from exomlir.rewrites.convert_scalar_ref import ConvertScalarRef
+from exomlir.rewrites.convert_tensor_ref import ConvertTensorRef
+from exomlir.rewrites.inline_memory_space import InlineMemorySpace
 
 logger = logging.getLogger("exo-mlir")
 
@@ -57,7 +62,7 @@ def compile_one(proc: Procedure) -> ModuleOp:
     """
     if proc.is_instr():
         raise TypeError("Cannot compile an instr procedure.")
-    return transform(context(), compile_many([proc]))
+    return compile_many([proc])
 
 
 def compile_many(library: Sequence[Procedure], print_exo=False) -> ModuleOp:
@@ -89,7 +94,7 @@ def compile_many(library: Sequence[Procedure], print_exo=False) -> ModuleOp:
             print(proc)
 
     # generate MLIR
-    return IRGenerator().generate(analyzed_procedures)
+    return transform(context(), IRGenerator().generate(analyzed_procedures))
 
 
 def compile_path(src: Path, dest: Path | None = None, print_exo: bool = False):
@@ -118,7 +123,6 @@ def compile_path(src: Path, dest: Path | None = None, print_exo: bool = False):
     assert all(isinstance(proc, Procedure) for proc in library)
 
     module = compile_many(library, print_exo=print_exo)
-    module = transform(context(), module)
 
     # print to stdout if no dest
     if not dest:
@@ -130,12 +134,26 @@ def compile_path(src: Path, dest: Path | None = None, print_exo: bool = False):
     dest.write_text(str(module))
 
 
-def transform(ctx: Context, module: ModuleOp) -> ModuleOp:
+def transform(ctx: Context, module: ModuleOp, lower_to_llvm=True) -> ModuleOp:
     """
     Apply transformations to an MLIR module.
     """
-    InlineExoPass().apply(ctx, module)
     CanonicalizePass().apply(ctx, module)
+
+    InlineMemorySpace().apply(ctx, module)
+    ConvertScalarRef().apply(ctx, module)
+    ConvertTensorRef().apply(ctx, module)
+
     CommonSubexpressionElimination().apply(ctx, module)
+    CanonicalizePass().apply(ctx, module)
+
+    # bail out if we are not lowering to LLVM
+    if not lower_to_llvm:
+        return module
+
+    ConvertScfToCf().apply(ctx, module)
+
+    ConvertMemRefToPtr(lower_func=True).apply(ctx, module)
+    ConvertPtrToLLVMPass().apply(ctx, module)
 
     return module

@@ -1,9 +1,9 @@
-from dataclasses import dataclass
 from xdsl.context import Context
-from xdsl.dialects.builtin import ModuleOp, IndexType, MemRefType
-from xdsl.dialects import arith, scf
+from xdsl.dialects.builtin import ModuleOp, MemRefType
+from xdsl.dialects import scf
 from xdsl.passes import ModulePass
 from xdsl.ir import Region, Use
+
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     PatternRewriteWalker,
@@ -14,28 +14,6 @@ from xdsl.pattern_rewriter import (
 
 
 from exomlir.dialects import exo
-
-
-@dataclass
-class LowerReads(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.ReadOp, rewriter: PatternRewriter):
-        if isinstance(op.input.type, exo.MemRefType):
-            return
-
-        if isinstance(op.input.type, IndexType):
-            rewriter.replace_matched_op(
-                arith.IndexCastOp(
-                    op.input,
-                    op.result.type,
-                )
-            )
-            return
-
-        if op.input.type == op.result.type:
-            op.result.replace_by(op.input)
-            rewriter.erase_matched_op()
-            return
 
 
 class ConvertAllocToIterArg(RewritePattern):
@@ -103,6 +81,8 @@ class ConvertAllocToIterArg(RewritePattern):
         ):
             return
 
+        print(f"Converting {op} to iter arg of {lcr_op}")
+
         # create new loop body with the alloc as an iter arg
         body = lcr_op.body.clone()
         body.blocks[0].insert_arg(op.result.type, len(body.blocks[0].args))
@@ -127,14 +107,13 @@ class ConvertAllocToIterArg(RewritePattern):
         )
 
 
-class InlineExoPass(ModulePass):
-    name = "inline-exo"
+class LowerIterArg(ModulePass):
+    name = "lower-iter-args"
 
     def apply(self, ctx: Context, m: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    LowerReads(),
                     ConvertAllocToIterArg(),
                 ]
             )
