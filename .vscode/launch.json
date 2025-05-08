@@ -10,7 +10,8 @@
 			"args": ["${file}", "-o", "-"],
 			"env": {
 				"PYTHONPATH": "${workspaceFolder}"
-			}
+			},
+			"justMyCode": false
 		}
 	]
 }

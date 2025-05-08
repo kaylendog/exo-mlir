@@ -1,9 +1,8 @@
-from typing import Sequence, cast
 from xdsl.context import Context
-from xdsl.dialects.builtin import ModuleOp, IndexType, IntAttr, MemRefType, IntegerAttr
+from xdsl.dialects.builtin import ModuleOp, IndexType, MemRefType, IntegerAttr
 from xdsl.dialects import arith, memref
 from xdsl.passes import ModulePass
-from xdsl.ir import SSAValue, Operation, OpResult
+from xdsl.ir import OpResult
 
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -20,7 +19,7 @@ class ConvertReadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: exo.ReadOp, rewriter: PatternRewriter):
         # convert tensor reads only
-        if len(op.indices) <= 1:
+        if len(op.indices) < 1:
             return
 
         rewriter.replace_matched_op(memref.LoadOp.get(op.input, op.indices))
@@ -30,7 +29,7 @@ class ConvertAssignOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: exo.AssignOp, rewriter: PatternRewriter):
         # convert tensor writes only
-        if len(op.indices) <= 1:
+        if len(op.indices) < 1:
             return
 
         rewriter.replace_matched_op(memref.StoreOp.get(op.value, op.input, op.indices))
@@ -40,14 +39,18 @@ class ConvertReduceOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: exo.ReduceOp, rewriter: PatternRewriter):
         # convert tensor writes only
-        if len(op.indices) <= 1:
+        if len(op.indices) < 1:
             return
+
+        assert isinstance(op.input.type, MemRefType)
 
         rewriter.replace_matched_op(
             (
                 load_op := memref.LoadOp.get(op.input, op.indices),
-                sub_op := arith.SubiOp(load_op.results[0], op.value, IndexType()),
-                memref.StoreOp.get(sub_op.result, op.input, op.indices),
+                add_op := arith.AddfOp(
+                    load_op.results[0], op.value, op.input.type.element_type
+                ),
+                memref.StoreOp.get(add_op.result, op.input, op.indices),
             ),
         )
 
@@ -142,7 +145,7 @@ class EraseUnusedIntervalOp(RewritePattern):
             rewriter.erase_matched_op(op)
 
 
-class ConvertTensorRef(ModulePass):
+class ConvertTensorRefPass(ModulePass):
     name = "convert-tensor-ref"
 
     def apply(self, ctx: Context, m: ModuleOp) -> None:

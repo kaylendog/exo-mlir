@@ -27,6 +27,11 @@ def main():
         "--print-exo",
         action="store_true",
     )
+    parser.add_argument(
+        "--cache-exo",
+        action="store_true",
+        help="Cache the exo analysis results to a file. This is useful for debugging.",
+    )
 
     args = parser.parse_args()
     srcs = [Path(src) for src in args.source]
@@ -58,7 +63,10 @@ def main():
     dests = [Path(args.output) / src.with_suffix(".mlir").name for src in srcs]
     for src, dest in zip(srcs, dests):
         compile_path(
-            src, dest if args.output != "-" else None, print_exo=args.print_exo
+            src,
+            dest if args.output != "-" else None,
+            print_exo=args.print_exo,
+            cache_exo=args.cache_exo,
         )
 
 

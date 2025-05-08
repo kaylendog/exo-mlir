@@ -8,7 +8,7 @@ dependencies = [
     "argparse>=1.4.0",
     "exo-lang==1.0.0",
     "pulp<2.8",
-    "snakemake>=9.1.10",
+    "snakemake>=9.3.3",
     "xdsl",
 ]
 scripts = { exo-mlir = "exomlir.main:main" }
@@ -23,8 +23,8 @@ dev = ["filecheck>=1.0.1", "lit>=18.1.8", "pytest>=8.3.4"]
 package = true
 
 [tool.uv.sources]
-xdsl = { git = "https://github.com/kaylendog/xdsl", rev = "2cd78c78489ce1aacdcdff0a97247f057ef295f1" }
+xdsl = { git = "https://github.com/kaylendog/xdsl", rev = "42919b00774327d1cdd7c4cbebb9e62bcb66d42f" }
 exoblas = { workspace = true }
 
 [tool.uv.workspace]
-members = ["exoblas"]
+members = ["./vendor/ExoBLAS"]

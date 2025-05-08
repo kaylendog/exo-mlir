@@ -22,6 +22,14 @@ class ConvertAllocOp(RewritePattern):
         if not isinstance(op.result.type, MemRefType):
             return
 
+        assert isinstance(op.result.type.memory_space, StringAttr), (
+            "Memory space should be a string"
+        )
+
+        # only convert DRAM allocs
+        if cast(StringAttr, op.result.type.memory_space).data != "DRAM":
+            return
+
         rewriter.replace_matched_op(
             memref.AllocOp.get(
                 op.result.type.element_type,
@@ -66,15 +74,32 @@ class ConvertWindowOp(RewritePattern):
         )
 
 
-class InlineMemorySpace(ModulePass):
+class ConvertFreeOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: exo.FreeOp, rewriter: PatternRewriter):
+        # convert tensor frees only
+        if not isinstance(op.input.type, MemRefType):
+            return
+
+        assert isinstance(op.input.type.memory_space, StringAttr), (
+            "Memory space should be a string"
+        )
+
+        # only convert DRAM allocs
+        if cast(StringAttr, op.input.type.memory_space).data != "DRAM":
+            return
+
+        rewriter.replace_matched_op(
+            memref.DeallocOp.get(
+                op.input,
+            )
+        )
+
+
+class InlineMemorySpacePass(ModulePass):
     name = "inline-memory-space"
 
     def apply(self, ctx: Context, m: ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
-                    ConvertAllocOp(),
-                    ConvertWindowOp(),
-                ]
-            )
+            GreedyRewritePatternApplier([ConvertAllocOp(), ConvertWindowOp()])
         ).rewrite_module(m)

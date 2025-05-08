@@ -19,15 +19,18 @@ from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.common_subexpression_elimination import (
     CommonSubexpressionElimination,
 )
-from xdsl.transforms.convert_scf_to_cf import ConvertScfToCf
+from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from xdsl.transforms.convert_memref_to_ptr import ConvertMemRefToPtr
+from xdsl.transforms.convert_ptr_type_offsets import ConvertPtrTypeOffsetsPass
 from xdsl.transforms.convert_ptr_to_llvm import ConvertPtrToLLVMPass
 
 from exomlir.dialects.exo import Exo
 from exomlir.generator import IRGenerator
-from exomlir.rewrites.convert_scalar_ref import ConvertScalarRef
-from exomlir.rewrites.convert_tensor_ref import ConvertTensorRef
-from exomlir.rewrites.inline_memory_space import InlineMemorySpace
+from exomlir.platforms.avx2 import InlineAVX2Pass
+from exomlir.rewrites.convert_scalar_ref import ConvertScalarRefPass
+from exomlir.rewrites.convert_tensor_ref import ConvertTensorRefPass
+from exomlir.rewrites.inline_memory_space import InlineMemorySpacePass
+from exomlir.rewrites.tidy import TidyPass
 
 logger = logging.getLogger("exo-mlir")
 
@@ -65,7 +68,9 @@ def compile_one(proc: Procedure) -> ModuleOp:
     return compile_many([proc])
 
 
-def compile_many(library: Sequence[Procedure], print_exo=False) -> ModuleOp:
+def compile_many(
+    library: Sequence[Procedure], print_exo=False, cache_exo=False
+) -> ModuleOp:
     """
     Compile a list of procedures into a single MLIR module..
     """
@@ -93,11 +98,22 @@ def compile_many(library: Sequence[Procedure], print_exo=False) -> ModuleOp:
         for proc in analyzed_procedures:
             print(proc)
 
+    if cache_exo:
+        with open("exo_cache.txt", "w") as f:
+            for proc in analyzed_procedures:
+                f.write(str(proc) + "\n")
+                f.write("\n")
+
     # generate MLIR
     return transform(context(), IRGenerator().generate(analyzed_procedures))
 
 
-def compile_path(src: Path, dest: Path | None = None, print_exo: bool = False):
+def compile_path(
+    src: Path,
+    dest: Path | None = None,
+    print_exo: bool = False,
+    cache_exo: bool = False,
+):
     """
     Compile all procedures in a Python source file to a single MLIR module, and write it to a file.
     """
@@ -122,7 +138,7 @@ def compile_path(src: Path, dest: Path | None = None, print_exo: bool = False):
     assert isinstance(library, list)
     assert all(isinstance(proc, Procedure) for proc in library)
 
-    module = compile_many(library, print_exo=print_exo)
+    module = compile_many(library, print_exo=print_exo, cache_exo=cache_exo)
 
     # print to stdout if no dest
     if not dest:
@@ -134,26 +150,35 @@ def compile_path(src: Path, dest: Path | None = None, print_exo: bool = False):
     dest.write_text(str(module))
 
 
-def transform(ctx: Context, module: ModuleOp, lower_to_llvm=True) -> ModuleOp:
+def transform(ctx: Context, module: ModuleOp, lower_to_llvm=False) -> ModuleOp:
     """
     Apply transformations to an MLIR module.
     """
     CanonicalizePass().apply(ctx, module)
 
-    InlineMemorySpace().apply(ctx, module)
-    ConvertScalarRef().apply(ctx, module)
-    ConvertTensorRef().apply(ctx, module)
+    InlineMemorySpacePass().apply(ctx, module)
+    ConvertScalarRefPass().apply(ctx, module)
+    ConvertTensorRefPass().apply(ctx, module)
 
-    CommonSubexpressionElimination().apply(ctx, module)
     CanonicalizePass().apply(ctx, module)
+    CommonSubexpressionElimination().apply(ctx, module)
 
     # bail out if we are not lowering to LLVM
     if not lower_to_llvm:
         return module
 
-    ConvertScfToCf().apply(ctx, module)
+    InlineAVX2Pass().apply(ctx, module)
+
+    TidyPass().apply(ctx, module)
+
+    CanonicalizePass().apply(ctx, module)
+    CommonSubexpressionElimination().apply(ctx, module)
 
     ConvertMemRefToPtr(lower_func=True).apply(ctx, module)
+    ConvertPtrTypeOffsetsPass().apply(ctx, module)
+
     ConvertPtrToLLVMPass().apply(ctx, module)
+
+    ReconcileUnrealizedCastsPass().apply(ctx, module)
 
     return module

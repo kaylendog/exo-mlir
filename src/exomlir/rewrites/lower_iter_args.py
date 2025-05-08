@@ -107,7 +107,7 @@ class ConvertAllocToIterArg(RewritePattern):
         )
 
 
-class LowerIterArg(ModulePass):
+class LowerIterArgPass(ModulePass):
     name = "lower-iter-args"
 
     def apply(self, ctx: Context, m: ModuleOp) -> None:

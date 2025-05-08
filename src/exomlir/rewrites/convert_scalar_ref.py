@@ -54,7 +54,7 @@ class ReconcileIndexCasts(RewritePattern):
             op.result.replace_by(op.input)
 
 
-class ConvertScalarRef(ModulePass):
+class ConvertScalarRefPass(ModulePass):
     name = "convert-scalar-ref"
 
     def apply(self, ctx: Context, m: ModuleOp) -> None:

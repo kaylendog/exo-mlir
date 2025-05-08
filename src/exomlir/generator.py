@@ -4,6 +4,7 @@ from typing import TypeAlias
 
 from exo.API import Sym
 from exo.core.LoopIR import LoopIR, T
+from exo.API_cursors import ExternFunctionCursor
 from xdsl.builder import Builder
 from xdsl.dialects.arith import (
     AddfOp,
@@ -61,7 +62,9 @@ from xdsl.utils.scoped_dict import ScopedDict
 
 from exomlir.dialects.exo import (
     AssignOp,
+    ExternOp,
     FreeOp,
+    InstrOp,
     IntervalOp,
     ReadOp,
     ReduceOp,
@@ -373,14 +376,6 @@ class IRGenerator:
         self.builder.insert(FreeOp(self.get_sym(free.name), free.mem.name()))
 
     def generate_call_stmt(self, call):
-        self.generate_procedure(call.f)
-
-        # ensure arg lengths match
-        if len(call.args) != len(call.f.args):
-            raise IRGeneratorError(
-                f"Call to '{call.f.name}' has {len(call.args)} arguments, expected {len(call.f.args)}"
-            )
-
         # build arguments
         args = [
             self.cast_to(
@@ -389,6 +384,18 @@ class IRGenerator:
             )
             for (call_arg, proc_arg) in zip(call.args, call.f.args)
         ]
+
+        if call.f.instr is not None:
+            self.builder.insert(InstrOp(call.f.name, args))
+            return
+
+        self.generate_procedure(call.f)
+
+        # ensure arg lengths match
+        if len(call.args) != len(call.f.args):
+            raise IRGeneratorError(
+                f"Call to '{call.f.name}' has {len(call.args)} arguments, expected {len(call.f.args)}"
+            )
 
         self.builder.insert(CallOp(call.f.name, args, []))
 
@@ -595,23 +602,11 @@ class IRGenerator:
         raise NotImplementedError("stride expressions are not yet supported")
 
     def generate_extern_expr(self, extern):
-        # compute extern types
-        input_types = [self.get_type(arg.type) for arg in extern.args]
-        output_type = extern.f.typecheck(extern.args)
-
-        # declare extern function if not seen
-        if extern.f.name() not in self.seen_externs:
-            # instantiate builder at module level
-            module_builder = Builder(
-                insertion_point=InsertPoint.at_end(self.module.body.blocks[0])
-            )
-            module_builder.insert(
-                FuncOp.external(extern.f.name(), input_types, [output_type])
-            )
-
+        # query exo for the type of the result
+        output_type = self.get_type(extern.f.typecheck(extern.args))
         args = self.generate_expr_list(extern.args)
-        self.builder.insert(op := CallOp(extern.f.name(), args, [output_type]))
-        return op.results[0]
+        self.builder.insert(op := ExternOp(extern.f.name(), args, output_type))
+        return op.result
 
     def generate_read_config_expr(self, read_config):
         raise NotImplementedError()

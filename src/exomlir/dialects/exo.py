@@ -10,6 +10,8 @@ from xdsl.dialects.builtin import (
     StringAttr,
     MemRefType,
     TupleType,
+    SymbolRefAttr,
+    FlatSymbolRefAttrConstr,
 )
 from xdsl.ir import Dialect, SSAValue, Operation
 
@@ -203,14 +205,52 @@ class WindowOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class InstrOp(IRDLOperation):
+    name = "exo.instr"
+
+    arguments = var_operand_def()
+
+    callee = prop_def(FlatSymbolRefAttrConstr)
+
+    def __init__(
+        self,
+        callee: str | SymbolRefAttr,
+        arguments: Sequence[SSAValue | Operation],
+    ) -> None:
+        if isinstance(callee, str):
+            callee = SymbolRefAttr(callee)
+        super().__init__(
+            operands=[arguments], result_types=[], properties={"callee": callee}
+        )
+
+
+@irdl_op_definition
+class ExternOp(IRDLOperation):
+    name = "exo.extern"
+
+    arguments = var_operand_def()
+    result = result_def()
+
+    callee = prop_def(FlatSymbolRefAttrConstr)
+
+    def __init__(
+        self,
+        callee: str | SymbolRefAttr,
+        arguments: Sequence[SSAValue | Operation],
+        result_type: Attribute,
+    ) -> None:
+        if isinstance(callee, str):
+            callee = SymbolRefAttr(callee)
+        super().__init__(
+            operands=[arguments],
+            result_types=[result_type],
+            properties={"callee": callee},
+        )
+
+
 Exo = Dialect(
     "exo",
-    [
-        AssignOp,
-        ReduceOp,
-        ReadOp,
-        WindowOp,
-        IntervalOp,
-    ],
+    [AssignOp, ReduceOp, ReadOp, WindowOp, IntervalOp, InstrOp],
     [],
 )
