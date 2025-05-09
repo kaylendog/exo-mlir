@@ -12,10 +12,10 @@ from xdsl.dialects.builtin import (
     TupleType,
     SymbolRefAttr,
     FlatSymbolRefAttrConstr,
+    DenseArrayBase,
+    i64,
 )
 from xdsl.ir import Dialect, SSAValue, Operation
-
-
 from xdsl.irdl import (
     IRDLOperation,
     AnyAttr,
@@ -27,8 +27,10 @@ from xdsl.irdl import (
     result_def,
     prop_def,
     var_operand_def,
+    AttrSizedOperandSegments,
 )
-from xdsl.dialects import arith
+from xdsl.dialects import arith, memref
+from xdsl.dialects.utils import split_dynamic_index_list
 
 
 SizeType: TypeAlias = arith.IndexType
@@ -188,20 +190,33 @@ class WindowOp(IRDLOperation):
     input = operand_def(
         MemRefType.constr(element_type=AnyAttr()),
     )
+    input_sizes = var_operand_def()
     indices = var_operand_def()
+    static_sizes = prop_def(DenseArrayBase)
 
     result = result_def(
         MemRefType.constr(element_type=T),
     )
 
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
     def __init__(
         self,
-        memref: SSAValue | Operation,
+        input: SSAValue | Operation,
+        sizes: Sequence[SSAValue[Attribute] | int],
         indices: Sequence[SSAValue | Operation],
         result_type: MemRefType,
     ) -> None:
+        static_sizes, dyn_sizes = split_dynamic_index_list(
+            sizes, memref.SubviewOp.DYNAMIC_INDEX
+        )
+
         super().__init__(
-            operands=[SSAValue.get(memref), indices], result_types=[result_type]
+            operands=[SSAValue.get(input), dyn_sizes, indices],
+            result_types=[result_type],
+            properties={
+                "static_sizes": DenseArrayBase.create_dense_int(i64, static_sizes)
+            },
         )
 
 

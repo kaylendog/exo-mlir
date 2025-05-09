@@ -110,6 +110,7 @@ class IRGenerator:
     builder: Builder
 
     symbol_table: ScopedDict[str, SSAValue] | None = None
+    type_table: ScopedDict[str, Attribute] | None = None
 
     seen_procs: set[str] = set()
     seen_externs: set[str] = set()
@@ -158,6 +159,23 @@ class IRGenerator:
             raise IRGeneratorError(f"Unknown symbol {sym.__repr__()}")
 
         return self.symbol_table[sym.__repr__()]
+
+    def declare_sym_exo_type(self, sym: Sym, type):
+        """
+        Declare a type for a symbol in the type table.
+        """
+        assert self.type_table is not None
+        self.type_table[sym.__repr__()] = type
+        return type
+
+    def get_sym_exo_type(self, sym: Sym):
+        """Get the type for a symbol."""
+        assert self.type_table is not None
+
+        if sym.__repr__() not in self.type_table:
+            raise IRGeneratorError(f"Unknown symbol {sym.__repr__()}")
+
+        return self.type_table[sym.__repr__()]
 
     def cast_to_index(self, value: SSAValue) -> SSAValue:
         # must not cast if already an index
@@ -242,7 +260,9 @@ class IRGenerator:
             return
 
         parent_symbol_table = self.symbol_table
+        parent_type_table = self.type_table
         self.symbol_table = ScopedDict[str, SSAValue]()
+        self.type_table = ScopedDict[str, Attribute]()
 
         # initialise function block
         block = Block(arg_types=input_types)
@@ -251,6 +271,7 @@ class IRGenerator:
         # add arguments to symbol table
         for proc_arg, block_arg in zip(procedure.args, block.args):
             self.declare_arg(proc_arg.name, block_arg)
+            self.declare_sym_exo_type(proc_arg.name, proc_arg.type)
 
         # generate function body
         self.generate_stmt_list(procedure.body)
@@ -258,6 +279,7 @@ class IRGenerator:
 
         # cleanup
         self.symbol_table = parent_symbol_table
+        self.type_table = parent_type_table
         self.builder = parent_builder
 
         # insert procedure into module
@@ -369,6 +391,7 @@ class IRGenerator:
         type = self.get_type(alloc.type, StringAttr(alloc.mem.name()))
         self.builder.insert(op := AllocOp(alloc.mem.name(), type))
         self.declare_value(alloc.name, op.results[0])
+        self.declare_sym_exo_type(alloc.name, alloc.type)
         return op.result
 
     def generate_free_stmt(self, free):
@@ -575,10 +598,23 @@ class IRGenerator:
         idx = [self.generate_w_access(w_access) for w_access in window.idx]
 
         input = self.get_sym(window.name)
-        assert isinstance(input.type, MemRefType)
+        input_exo_type = self.get_sym_exo_type(window.name)
         dest_type = self.get_type(window.type.as_tensor, input.type.memory_space)
 
-        self.builder.insert(op := WindowOp(self.get_sym(window.name), idx, dest_type))
+        (shape, dynamic_shapes) = self.get_shape(input_exo_type)
+
+        input_sizes = []
+        dynamic_idx = 0
+        for i, dim in enumerate(shape):
+            if dim.data == -1:
+                input_sizes.append(dynamic_shapes[dynamic_idx])
+                dynamic_idx += 1
+            else:
+                input_sizes.append(dim.data)
+
+        self.builder.insert(
+            op := WindowOp(self.get_sym(window.name), input_sizes, idx, dest_type)
+        )
 
         return op.result
 
@@ -645,7 +681,7 @@ class IRGenerator:
                 raise IRGeneratorError(f"Unknown tensor inner type '{inner}'")
 
             # compute shape and strides
-            shape = self.get_shape(t)
+            (shape, _) = self.get_shape(t)
 
             if inner == f16:
                 return MemRefTypeF16(f16, shape, NoneAttr(), mem_space)
@@ -665,18 +701,24 @@ class IRGenerator:
         else:
             raise IRGeneratorError(f"Unknown type '{t}'")
 
-    def get_shape(self, type) -> list[IntegerAttr]:
+    def get_shape(self, type) -> tuple[list[IntegerAttr], list[SSAValue]]:
         """
         Get the shape of a tensor type as a list of integer attributes.
         """
         assert isinstance(type, T.Tensor)
 
+        dynamic_shapes = []
+
         def attr_from_expr(expr):
             if isinstance(expr, LoopIR.Const):
                 return IntAttr(expr.val)
-            elif isinstance(expr, LoopIR.Read) or isinstance(expr, LoopIR.BinOp):
+            elif isinstance(expr, LoopIR.Read):
+                if self.symbol_table is not None:
+                    dynamic_shapes.append(self.get_sym(expr.name))
+                return IntAttr(-1)
+            elif isinstance(expr, LoopIR.BinOp):
                 return IntAttr(-1)
             else:
                 raise IRGeneratorError(f"Invalid shape argument {expr}")
 
-        return [attr_from_expr(expr) for expr in type.shape()]
+        return ([attr_from_expr(expr) for expr in type.shape()], dynamic_shapes)
