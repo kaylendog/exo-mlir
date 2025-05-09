@@ -17,15 +17,6 @@ from xdsl.pattern_rewriter import (
 from exomlir.dialects import index
 
 
-class ConvertMemRefCastOp(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: memref.CastOp, rewriter: PatternRewriter):
-        if not op.source.type == op.dest.type:
-            return
-
-        op.results[0].replace_by(op.source)
-
-
 class RemoveMemorySpacePattern(TypeConversionPattern):
     """
     Replaces `ptr_dxdsl.ptr` with `llvm.ptr`.
@@ -40,20 +31,14 @@ class RemoveMemorySpacePattern(TypeConversionPattern):
         )
 
 
-class ConvertCastsOp(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: index.CastsOp, rewriter: PatternRewriter):
-        if op.input.type == op.result.type:
-            # replace x -> x cast with x
-            rewriter.replace_matched_op((), (op.input,))
-
-
 class TidyPass(ModulePass):
     name = "tidy"
 
     def apply(self, ctx: Context, m: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
-                [ConvertMemRefCastOp(), RemoveMemorySpacePattern(), ConvertCastsOp()]
+                [
+                    RemoveMemorySpacePattern(),
+                ]
             )
         ).rewrite_module(m)

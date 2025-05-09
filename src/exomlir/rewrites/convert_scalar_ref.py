@@ -29,29 +29,20 @@ class ConvertRedundantReadOp(RewritePattern):
 
         if op.input.type == op.result.type and isinstance(op.input, BlockArgument):
             # replace x -> x with x
-            op.result.replace_by(op.input)
-            rewriter.erase_matched_op()
+            rewriter.replace_matched_op((), (op.input,))
 
 
 class ReconcileIndexCasts(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: index.CastsOp, rewriter: PatternRewriter):
-        # replace x -> x cast with x
-        if op.input.type == op.result.type:
-            op.result.replace_by(op.input)
-
         # replace x -> y -> x cast with x
-        for use in tuple(op.result.uses):
-            if not isinstance(use.operation, index.CastsOp):
-                continue
+        if not isinstance(op.input.owner, index.CastsOp):
+            return
 
-            if len(use.operation.result.uses) != 1:
-                continue
+        if op.input.owner.input.type != op.result.type:
+            return
 
-            if use.operation.result.type != op.input.type:
-                continue
-
-            op.result.replace_by(op.input)
+        rewriter.replace_matched_op((), (op.input.owner.input,))
 
 
 class ConvertScalarRefPass(ModulePass):
@@ -61,5 +52,6 @@ class ConvertScalarRefPass(ModulePass):
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [ConvertRedundantReadOp(), ReconcileIndexCasts()]
-            )
+            ),
+            walk_reverse=True,
         ).rewrite_module(m)

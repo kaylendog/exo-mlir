@@ -188,7 +188,7 @@ class IRGenerator:
 
     def cast_to(self, value: SSAValue, type: Attribute) -> SSAValue:
         # no need to cast if types match
-        if value.type is type:
+        if value.type == type:
             return value
 
         if isinstance(type, IndexType) ^ isinstance(value.type, IndexType):
@@ -623,7 +623,7 @@ class IRGenerator:
 
         self.builder.insert(
             op := WindowOp(
-                self.get_sym(window.name), input_sizes, output_sizes, idx, dest_type
+                self.get_sym(window.name), idx, input_sizes, output_sizes, dest_type
             )
         )
 

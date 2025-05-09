@@ -155,11 +155,27 @@ def transform(ctx: Context, module: ModuleOp, lower_to_llvm=True) -> ModuleOp:
     """
 
     InlineMemorySpacePass().apply(ctx, module)
+    # print(module)
+    # print("=== After InlineMemorySpacePass ===")
+    module.verify()
+
     ConvertScalarRefPass().apply(ctx, module)
+    # print(module)
+    # print("=== After ConvertScalarRefPass ===")
+    module.verify()
     ConvertTensorRefPass().apply(ctx, module)
+    # print(module)
+    # print("=== After ConvertTensorRefPass ===")
+    module.verify()
 
     InlineAVX2Pass().apply(ctx, module)
-    TidyPass().apply(ctx, module)
+    # print(module)
+    # print("=== After InlineAVX2Pass ===")
+    module.verify()
+    # TidyPass().apply(ctx, module)
+    # print(module)
+    # print("=== After TidyPass ===")
+    module.verify()
 
     CanonicalizePass().apply(ctx, module)
     CommonSubexpressionElimination().apply(ctx, module)

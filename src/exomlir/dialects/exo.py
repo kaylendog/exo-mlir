@@ -205,9 +205,9 @@ class WindowOp(IRDLOperation):
     def __init__(
         self,
         input: SSAValue | Operation,
+        indices: Sequence[SSAValue | Operation],
         input_sizes: Sequence[SSAValue | Operation | int],
         output_sizes: Sequence[SSAValue[Attribute] | int],
-        indices: Sequence[SSAValue | Operation],
         result_type: MemRefType,
     ) -> None:
         static_input_sizes, dyn_input_sizes = split_dynamic_index_list(
@@ -218,7 +218,7 @@ class WindowOp(IRDLOperation):
         )
 
         super().__init__(
-            operands=[SSAValue.get(input), dyn_input_sizes, dyn_output_sizes, indices],
+            operands=[SSAValue.get(input), indices, dyn_input_sizes, dyn_output_sizes],
             result_types=[result_type],
             properties={
                 "static_input_sizes": DenseArrayBase.create_dense_int(
