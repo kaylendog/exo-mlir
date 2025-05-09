@@ -4,9 +4,9 @@ from typing import TypeAlias
 
 from exo.API import Sym
 from exo.core.LoopIR import LoopIR, T
-from exo.API_cursors import ExternFunctionCursor
 from xdsl.builder import Builder
 from xdsl.dialects.arith import (
+    FastMathFlagsAttr,
     AddfOp,
     AddiOp,
     AndIOp,
@@ -15,7 +15,6 @@ from xdsl.dialects.arith import (
     ConstantOp,
     DivfOp,
     DivSIOp,
-    IndexCastOp,
     MulfOp,
     MuliOp,
     NegfOp,
@@ -36,8 +35,8 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     MemRefType,
     ModuleOp,
-    NoneAttr,
     StridedLayoutAttr,
+    NoneAttr,
     StringAttr,
     f16,
     f32,
@@ -71,6 +70,7 @@ from exomlir.dialects.exo import (
     WindowOp,
     AllocOp,
 )
+from exomlir.dialects.index import CastsOp
 
 
 MemRefTypeI8: TypeAlias = MemRefType[I8]
@@ -163,7 +163,7 @@ class IRGenerator:
         # must not cast if already an index
         if isinstance(value.type, IndexType):
             return value
-        cast = IndexCastOp(value, IndexType())
+        cast = CastsOp(value, IndexType())
         self.builder.insert(cast)
         return cast.result
 
@@ -172,8 +172,8 @@ class IRGenerator:
         if value.type is type:
             return value
 
-        if isinstance(type, IndexType) or isinstance(value.type, IndexType):
-            cast = IndexCastOp(value, type)
+        if isinstance(type, IndexType) ^ isinstance(value.type, IndexType):
+            cast = CastsOp(value, type)
             result = cast.result
 
         elif isinstance(type, MemRefType) and isinstance(value.type, MemRefType):
@@ -239,7 +239,6 @@ class IRGenerator:
 
         # generate private funcs for instruction procedures
         if procedure.instr is not None:
-            module_builder.insert(FuncOp.external(procedure.name, input_types, []))
             return
 
         parent_symbol_table = self.symbol_table
@@ -499,13 +498,13 @@ class IRGenerator:
         type = self.get_type(binop.type)
 
         if binop.op == "+":
-            binop = AddfOp(lhs, rhs, result_type=type)
+            binop = AddfOp(lhs, rhs, result_type=type, flags=FastMathFlagsAttr("none"))
         elif binop.op == "-":
-            binop = SubfOp(lhs, rhs, result_type=type)
+            binop = SubfOp(lhs, rhs, result_type=type, flags=FastMathFlagsAttr("none"))
         elif binop.op == "*":
-            binop = MulfOp(lhs, rhs, result_type=type)
+            binop = MulfOp(lhs, rhs, result_type=type, flags=FastMathFlagsAttr("none"))
         elif binop.op == "/":
-            binop = DivfOp(lhs, rhs, result_type=type)
+            binop = DivfOp(lhs, rhs, result_type=type, flags=FastMathFlagsAttr("none"))
         else:
             raise IRGeneratorError(f"Unknown binop {binop.op}")
 
@@ -647,20 +646,19 @@ class IRGenerator:
 
             # compute shape and strides
             shape = self.get_shape(t)
-            strides = StridedLayoutAttr([1 for _ in shape])
 
             if inner == f16:
-                return MemRefTypeF16(f16, shape, strides, mem_space)
+                return MemRefTypeF16(f16, shape, NoneAttr(), mem_space)
             elif inner == f32:
-                return MemRefTypeF32(f32, shape, strides, mem_space)
+                return MemRefTypeF32(f32, shape, NoneAttr(), mem_space)
             elif inner == f64:
-                return MemRefTypeF64(f64, shape, strides, mem_space)
+                return MemRefTypeF64(f64, shape, NoneAttr(), mem_space)
             elif inner == i8:
-                return MemRefTypeI8(i8, shape, strides, mem_space)
+                return MemRefTypeI8(i8, shape, NoneAttr(), mem_space)
             elif inner == i16:
-                return MemRefTypeI16(i16, shape, strides, mem_space)
+                return MemRefTypeI16(i16, shape, NoneAttr(), mem_space)
             elif inner == i32:
-                return MemRefTypeI32(i32, shape, strides, mem_space)
+                return MemRefTypeI32(i32, shape, NoneAttr(), mem_space)
             else:
                 raise IRGeneratorError("Entered unreachable code")
 

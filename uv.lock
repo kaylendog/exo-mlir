@@ -212,7 +212,7 @@ requires-dist = [
     { name = "exoblas", marker = "extra == 'exoblas'", editable = "vendor/ExoBLAS" },
     { name = "pulp", specifier = "<2.8" },
     { name = "snakemake", specifier = ">=9.3.3" },
-    { name = "xdsl", git = "https://github.com/kaylendog/xdsl?rev=42919b00774327d1cdd7c4cbebb9e62bcb66d42f" },
+    { name = "xdsl", git = "https://github.com/kaylendog/xdsl?rev=2be0fb683891d9ddd73d817a201711128c30e085" },
 ]
 provides-extras = ["exoblas"]
 
@@ -860,8 +860,8 @@ wheels = [
 
 [[package]]
 name = "xdsl"
-version = "0.1.dev3705+g42919b0"
-source = { git = "https://github.com/kaylendog/xdsl?rev=42919b00774327d1cdd7c4cbebb9e62bcb66d42f#42919b00774327d1cdd7c4cbebb9e62bcb66d42f" }
+version = "0.1.dev3726+g2be0fb6"
+source = { git = "https://github.com/kaylendog/xdsl?rev=2be0fb683891d9ddd73d817a201711128c30e085#2be0fb683891d9ddd73d817a201711128c30e085" }
 dependencies = [
     { name = "immutabledict" },
     { name = "ordered-set" },

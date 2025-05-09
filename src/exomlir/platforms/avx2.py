@@ -7,7 +7,6 @@ from xdsl.dialects.builtin import (
     IndexType,
     Float32Type,
     VectorType,
-    UnrealizedConversionCastOp,
 )
 from xdsl.dialects import memref, vector, arith
 from xdsl.passes import ModulePass
@@ -26,7 +25,13 @@ from exomlir.dialects import exo
 class ConvertAllocOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: exo.AllocOp, rewriter):
-        pass
+        # require all sizes to be known
+        rewriter.replace_matched_op(
+            memref.AllocaOp(
+                operands=((), ()),
+                result_types=[op.result.type],
+            )
+        )
 
 
 class ConvertFreeOp(RewritePattern):
@@ -48,12 +53,14 @@ class ConvertMM256StoreuPsOp(RewritePattern):
         rewriter.replace_matched_op(
             (
                 zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    [VectorType(Float32Type(), [8])],
+                load_op := vector.LoadOp(
+                    operands=[op.arguments[1], [zero_op.result]],
+                    result_types=[VectorType(Float32Type(), [8])],
                 ),
                 vector.StoreOp.get(
-                    op.arguments[0], cast_op.results[0], [zero_op.result]
+                    load_op.result,
+                    op.arguments[0],
+                    [zero_op.result],
                 ),
             )
         )
@@ -71,18 +78,25 @@ class ConvertMM256FmaddPsOp(RewritePattern):
         rewriter.replace_matched_op(
             (
                 zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                cast_op := UnrealizedConversionCastOp.get(
-                    op.arguments[1:],
-                    [VectorType(Float32Type(), [8]), VectorType(Float32Type(), [8])],
-                ),
-                load_op := vector.LoadOp(
+                load0_op := vector.LoadOp(
                     operands=[op.arguments[0], [zero_op.result]],
                     result_types=[VectorType(Float32Type(), [8])],
                 ),
-                fma_op := vector.FMAOp.get(
-                    cast_op.results[0],
-                    cast_op.results[1],
-                    load_op,
+                load1_op := vector.LoadOp(
+                    operands=[op.arguments[1], [zero_op.result]],
+                    result_types=[VectorType(Float32Type(), [8])],
+                ),
+                load2_op := vector.LoadOp(
+                    operands=[op.arguments[2], [zero_op.result]],
+                    result_types=[VectorType(Float32Type(), [8])],
+                ),
+                fma_op := vector.FMAOp(
+                    operands=[
+                        load1_op.result,
+                        load2_op.result,
+                        load0_op.result,
+                    ],
+                    result_types=[VectorType(Float32Type(), [8])],
                 ),
                 vector.StoreOp.get(fma_op.res, op.arguments[0], [zero_op.result]),
             )
@@ -94,6 +108,29 @@ class ConvertMM256BroadcastSsOp(RewritePattern):
     def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
         if op.callee.root_reference.data != "mm256_broadcast_ss":
             return
+
+        assert len(op.arguments) == 2
+        assert isinstance(op.arguments[0].type, MemRefType)
+        assert isinstance(op.arguments[1].type, MemRefType)
+
+        rewriter.replace_matched_op(
+            (
+                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
+                scalar_load_op := memref.LoadOp.get(
+                    op.arguments[1],
+                    [zero_op.result],
+                ),
+                broadcast_op := vector.BroadcastOp(
+                    operands=[scalar_load_op.results[0]],
+                    result_types=[VectorType(Float32Type(), [8])],
+                ),
+                vector.StoreOp.get(
+                    broadcast_op.results[0],
+                    op.arguments[0],
+                    [zero_op.result],
+                ),
+            )
+        )
 
 
 class ConvertMM256LoaduPsOp(RewritePattern):

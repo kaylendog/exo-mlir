@@ -20,11 +20,9 @@ from xdsl.transforms.common_subexpression_elimination import (
     CommonSubexpressionElimination,
 )
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
-from xdsl.transforms.convert_memref_to_ptr import ConvertMemRefToPtr
-from xdsl.transforms.convert_ptr_type_offsets import ConvertPtrTypeOffsetsPass
-from xdsl.transforms.convert_ptr_to_llvm import ConvertPtrToLLVMPass
 
 from exomlir.dialects.exo import Exo
+from exomlir.dialects.index import Index
 from exomlir.generator import IRGenerator
 from exomlir.platforms.avx2 import InlineAVX2Pass
 from exomlir.rewrites.convert_scalar_ref import ConvertScalarRefPass
@@ -43,6 +41,7 @@ def context() -> Context:
     ctx.load_dialect(memref.MemRef)
     ctx.load_dialect(scf.Scf)
     ctx.load_dialect(Exo)
+    ctx.load_dialect(Index)
     return ctx
 
 
@@ -150,15 +149,17 @@ def compile_path(
     dest.write_text(str(module))
 
 
-def transform(ctx: Context, module: ModuleOp, lower_to_llvm=False) -> ModuleOp:
+def transform(ctx: Context, module: ModuleOp, lower_to_llvm=True) -> ModuleOp:
     """
     Apply transformations to an MLIR module.
     """
-    CanonicalizePass().apply(ctx, module)
 
     InlineMemorySpacePass().apply(ctx, module)
     ConvertScalarRefPass().apply(ctx, module)
     ConvertTensorRefPass().apply(ctx, module)
+
+    InlineAVX2Pass().apply(ctx, module)
+    TidyPass().apply(ctx, module)
 
     CanonicalizePass().apply(ctx, module)
     CommonSubexpressionElimination().apply(ctx, module)
@@ -167,17 +168,13 @@ def transform(ctx: Context, module: ModuleOp, lower_to_llvm=False) -> ModuleOp:
     if not lower_to_llvm:
         return module
 
-    InlineAVX2Pass().apply(ctx, module)
-
-    TidyPass().apply(ctx, module)
-
     CanonicalizePass().apply(ctx, module)
     CommonSubexpressionElimination().apply(ctx, module)
 
-    ConvertMemRefToPtr(lower_func=True).apply(ctx, module)
-    ConvertPtrTypeOffsetsPass().apply(ctx, module)
-
-    ConvertPtrToLLVMPass().apply(ctx, module)
+    # ConvertMemRefToPtr(lower_func=True).apply(ctx, module)
+    # ConvertPtrTypeOffsetsPass().apply(ctx, module)
+    # ConvertPtrToLLVMPass().apply(ctx, module)
+    # ConvertVectorPtrToLLVMPass().apply(ctx, module)
 
     ReconcileUnrealizedCastsPass().apply(ctx, module)
 

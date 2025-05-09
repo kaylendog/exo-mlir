@@ -11,7 +11,7 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.ir import BlockArgument
 
-from exomlir.dialects import exo
+from exomlir.dialects import exo, index
 
 
 class ConvertRedundantReadOp(RewritePattern):
@@ -25,7 +25,7 @@ class ConvertRedundantReadOp(RewritePattern):
         if isinstance(op.input.type, IndexType) and not isinstance(
             op.result.type, IndexType
         ):
-            rewriter.replace_matched_op(arith.IndexCastOp(op.input, op.result.type))
+            rewriter.replace_matched_op(index.CastsOp(op.input, op.result.type))
 
         if op.input.type == op.result.type and isinstance(op.input, BlockArgument):
             # replace x -> x with x
@@ -35,14 +35,14 @@ class ConvertRedundantReadOp(RewritePattern):
 
 class ReconcileIndexCasts(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: arith.IndexCastOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: index.CastsOp, rewriter: PatternRewriter):
         # replace x -> x cast with x
         if op.input.type == op.result.type:
             op.result.replace_by(op.input)
 
         # replace x -> y -> x cast with x
         for use in tuple(op.result.uses):
-            if not isinstance(use.operation, arith.IndexCastOp):
+            if not isinstance(use.operation, index.CastsOp):
                 continue
 
             if len(use.operation.result.uses) != 1:

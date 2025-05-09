@@ -1,5 +1,13 @@
+from typing import cast
 from xdsl.context import Context
-from xdsl.dialects.builtin import ModuleOp, IndexType, MemRefType, IntegerAttr
+from xdsl.dialects.builtin import (
+    ModuleOp,
+    IndexType,
+    MemRefType,
+    IntegerAttr,
+    NoneAttr,
+    StridedLayoutAttr,
+)
 from xdsl.dialects import arith, memref
 from xdsl.passes import ModulePass
 from xdsl.ir import OpResult
@@ -48,7 +56,10 @@ class ConvertReduceOp(RewritePattern):
             (
                 load_op := memref.LoadOp.get(op.input, op.indices),
                 add_op := arith.AddfOp(
-                    load_op.results[0], op.value, op.input.type.element_type
+                    operand1=load_op.results[0],
+                    operand2=op.value,
+                    flags=arith.FastMathFlagsAttr("none"),
+                    result_type=op.input.type.element_type,
                 ),
                 memref.StoreOp.get(add_op.result, op.input, op.indices),
             ),
@@ -58,79 +69,33 @@ class ConvertReduceOp(RewritePattern):
 class ConvertWindowOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: exo.WindowOp, rewriter: PatternRewriter):
-        ops = [
-            zero := arith.ConstantOp(IntegerAttr(0, IndexType())),
-            one := arith.ConstantOp(IntegerAttr(1, IndexType())),
-        ]
+        input_shape = cast(MemRefType, op.input.type).get_shape()
+        output_shape = cast(MemRefType, op.result.type).get_shape()
 
-        offsets = []
-        sizes = []
+        sizes = input_shape[: len(input_shape) - len(output_shape)] + output_shape
+
+        # compute strides
         strides = []
-        static_offsets = []
-        static_sizes = []
-        static_strides = []
-        shape = []
+        dynamic_stride = False
+        stride = 1
+        for dim in reversed(input_shape):
+            if dynamic_stride:
+                strides.insert(0, memref.SubviewOp.DYNAMIC_INDEX)
+                continue
 
-        for operand in op.indices:
-            #  if the operand is an interval, compute size
-            if isinstance(operand, OpResult) and isinstance(operand.op, exo.IntervalOp):
-                ops.append(
-                    sub_op := arith.SubiOp(
-                        operand.op.end, operand.op.start, IndexType()
-                    )
-                )
-                offsets.append(operand.op.start)
-                sizes.append(sub_op.result)
-                strides.append(one.result)
-                static_offsets.append(memref.SubviewOp.DYNAMIC_INDEX)
-                static_sizes.append(memref.SubviewOp.DYNAMIC_INDEX)
-                static_strides.append(1)
-                shape.append(-1)
-            else:
-                offsets.append(operand)
-                sizes.append(one.result)
-                strides.append(one.result)
-                static_offsets.append(0)
-                static_sizes.append(1)
-                static_strides.append(1)
-                shape.append(1)
+            if dim == -1:
+                dynamic_stride = True
 
-        output_type = MemRefType(
-            op.result.type.element_type,
-            shape,
-            op.result.type.layout,
-            op.result.type.memory_space,
-        )
-
-        output_dims = len(op.result.type.shape.data)
-        output_shape_ops = []
-        for s in op.result.type.get_shape():
-            if s == -1:
-                output_shape_ops.append(zero.result)
-            else:
-                output_shape_ops.append(s)
+            strides.insert(0, stride)
+            stride *= dim
 
         rewriter.replace_matched_op(
             (
-                *ops,
-                subview_op := memref.SubviewOp(
-                    source=op.input,
-                    offsets=offsets,
-                    sizes=sizes,
-                    strides=strides,
-                    static_offsets=static_offsets,
-                    static_sizes=static_sizes,
-                    static_strides=static_strides,
-                    result_type=output_type,
+                subview_op := memref.SubviewOp.get(
+                    op.input, op.indices, sizes, strides, op.result.type
                 ),
-                memref.ReinterpretCastOp(
+                memref.CastOp.get(
                     subview_op.result,
-                    [],
-                    [],
-                    [],
-                    [0] * output_dims,
-                    op.result.type.get_shape(),
-                    [1] * output_dims,
                     op.result.type,
                 ),
             )

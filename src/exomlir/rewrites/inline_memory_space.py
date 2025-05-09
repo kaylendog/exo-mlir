@@ -85,10 +85,6 @@ class ConvertFreeOp(RewritePattern):
             "Memory space should be a string"
         )
 
-        # only convert DRAM allocs
-        if cast(StringAttr, op.input.type.memory_space).data != "DRAM":
-            return
-
         rewriter.replace_matched_op(
             memref.DeallocOp.get(
                 op.input,
@@ -101,5 +97,7 @@ class InlineMemorySpacePass(ModulePass):
 
     def apply(self, ctx: Context, m: ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier([ConvertAllocOp(), ConvertWindowOp()])
+            GreedyRewritePatternApplier(
+                [ConvertAllocOp(), ConvertWindowOp(), ConvertFreeOp()]
+            )
         ).rewrite_module(m)

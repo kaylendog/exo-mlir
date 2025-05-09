@@ -23,7 +23,7 @@ dev = ["filecheck>=1.0.1", "lit>=18.1.8", "pytest>=8.3.4"]
 package = true
 
 [tool.uv.sources]
-xdsl = { git = "https://github.com/kaylendog/xdsl", rev = "42919b00774327d1cdd7c4cbebb9e62bcb66d42f" }
+xdsl = { git = "https://github.com/kaylendog/xdsl", rev = "2be0fb683891d9ddd73d817a201711128c30e085" }
 exoblas = { workspace = true }
 
 [tool.uv.workspace]
