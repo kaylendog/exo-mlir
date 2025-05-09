@@ -190,9 +190,11 @@ class WindowOp(IRDLOperation):
     input = operand_def(
         MemRefType.constr(element_type=AnyAttr()),
     )
-    sizes = var_operand_def()
     indices = var_operand_def()
-    static_sizes = prop_def(DenseArrayBase)
+    input_sizes = var_operand_def()
+    static_input_sizes = prop_def(DenseArrayBase)
+    output_sizes = var_operand_def()
+    static_output_sizes = prop_def(DenseArrayBase)
 
     result = result_def(
         MemRefType.constr(element_type=T),
@@ -203,19 +205,28 @@ class WindowOp(IRDLOperation):
     def __init__(
         self,
         input: SSAValue | Operation,
-        sizes: Sequence[SSAValue[Attribute] | int],
+        input_sizes: Sequence[SSAValue | Operation | int],
+        output_sizes: Sequence[SSAValue[Attribute] | int],
         indices: Sequence[SSAValue | Operation],
         result_type: MemRefType,
     ) -> None:
-        static_sizes, dyn_sizes = split_dynamic_index_list(
-            sizes, memref.SubviewOp.DYNAMIC_INDEX
+        static_input_sizes, dyn_input_sizes = split_dynamic_index_list(
+            input_sizes, memref.SubviewOp.DYNAMIC_INDEX
+        )
+        static_output_sizes, dyn_output_sizes = split_dynamic_index_list(
+            output_sizes, memref.SubviewOp.DYNAMIC_INDEX
         )
 
         super().__init__(
-            operands=[SSAValue.get(input), dyn_sizes, indices],
+            operands=[SSAValue.get(input), dyn_input_sizes, dyn_output_sizes, indices],
             result_types=[result_type],
             properties={
-                "static_sizes": DenseArrayBase.create_dense_int(i64, static_sizes)
+                "static_input_sizes": DenseArrayBase.create_dense_int(
+                    i64, static_input_sizes
+                ),
+                "static_output_sizes": DenseArrayBase.create_dense_int(
+                    i64, static_output_sizes
+                ),
             },
         )
 

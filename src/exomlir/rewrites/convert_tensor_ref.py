@@ -5,6 +5,8 @@ from xdsl.dialects.builtin import (
     MemRefType,
     NoneAttr,
     StridedLayoutAttr,
+    IntegerAttr,
+    IndexType,
 )
 from xdsl.dialects import arith, memref
 from xdsl.dialects.utils import get_dynamic_index_list
@@ -68,12 +70,13 @@ class ConvertReduceOp(RewritePattern):
 class ConvertWindowOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: exo.WindowOp, rewriter: PatternRewriter):
-        input_shape = cast(MemRefType, op.input.type).get_shape()
-        output_shape = cast(MemRefType, op.result.type).get_shape()
+        input_sizes = op.static_input_sizes.get_values()
+        output_sizes = op.static_output_sizes.get_values()
 
-        sizes = [1] * (len(input_shape) - len(output_shape)) + get_dynamic_index_list(
-            op.static_sizes.get_values(),
-            op.sizes,
+        # compute sizes
+        sizes = [1] * (len(input_sizes) - len(output_sizes)) + get_dynamic_index_list(
+            op.static_output_sizes.get_values(),
+            op.output_sizes,
             memref.SubviewOp.DYNAMIC_INDEX,
         )
 
@@ -85,30 +88,50 @@ class ConvertWindowOp(RewritePattern):
             else:
                 indices.append(operand)
 
-        # compute strides
+        # compute strides - these should be the same as the input strides, which we calculate using
+        # strides[0] = 1
+        # strides[i] = strides[i - 1] * sizes[i]
         strides = []
         dynamic_stride = False
         dynamic_idx = 0
         stride = 1
         ops: list[Operation] = []
 
-        for dim in reversed(input_shape):
+        for dim in reversed(input_sizes):
+            strides.insert(0, stride)
+
             if dynamic_stride:
-                ops.append(
-                    mul_op := arith.MuliOp(
-                        operand1=ops[-1].results[0],
-                        operand2=op.sizes[dynamic_idx],
+                if dim == memref.SubviewOp.DYNAMIC_INDEX:
+                    # if we encounter another dynamic index, we need to multiply the stride by the
+                    # dynamic size
+                    ops.append(
+                        arith.MuliOp(
+                            operand1=ops[-1].results[0],
+                            operand2=op.input_sizes[dynamic_idx],
+                        )
                     )
-                )
-                dynamic_idx += 1
-                strides.insert(0, mul_op.results[0])
+                    dynamic_idx += 1
+                else:
+                    # otherwise we can multiply the stride by the static size
+                    ops.append(
+                        const_op := arith.ConstantOp(IntegerAttr(dim, IndexType())),
+                    )
+                    ops.append(
+                        arith.MuliOp(
+                            operand1=ops[-1].results[0],
+                            operand2=const_op.result,
+                        ),
+                    )
+
                 continue
 
-            if dim == -1:
+            # when we encounter the first dynamic index, we need to start using the dynamic stride
+            if dim == memref.SubviewOp.DYNAMIC_INDEX:
                 dynamic_stride = True
-
-            strides.insert(0, stride)
-            stride *= dim
+                ops.append(arith.ConstantOp(IntegerAttr(stride, IndexType())))
+            # otherwise, we can continue to compute the stride statically
+            else:
+                stride *= dim
 
         rewriter.replace_matched_op(
             (
@@ -121,7 +144,7 @@ class ConvertWindowOp(RewritePattern):
                         op.result.type.element_type,
                         op.result.type.shape,
                         StridedLayoutAttr(
-                            strides[len(input_shape) - len(output_shape) :], NoneAttr()
+                            strides[len(input_sizes) - len(output_sizes) :], NoneAttr()
                         ),
                         op.result.type.memory_space,
                     ),

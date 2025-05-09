@@ -55,6 +55,7 @@ from xdsl.dialects.memref import (
 )
 from xdsl.dialects.scf import ForOp, IfOp, YieldOp
 from xdsl.dialects.test import TestOp
+from xdsl.dialects.utils import get_dynamic_index_list
 from xdsl.ir import Block, BlockArgument, OpResult, Region, SSAValue, Attribute
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.scoped_dict import ScopedDict
@@ -600,19 +601,30 @@ class IRGenerator:
         input = self.get_sym(window.name)
         dest_type = self.get_type(window.type.as_tensor, input.type.memory_space)
 
-        (shape, dynamic_shapes) = self.get_shape(window.type.as_tensor)
+        (input_shape, dynamic_input_shape) = self.get_shape(
+            self.get_sym_exo_type(window.name)
+        )
+        (output_shape, dynamic_output_shape) = self.get_shape(window.type.as_tensor)
 
-        sizes = []
+        input_shape = [i.data for i in input_shape]
+        output_shape = [i.data for i in output_shape]
+
+        input_sizes = get_dynamic_index_list(input_shape, dynamic_input_shape, -1)
+        output_sizes = get_dynamic_index_list(output_shape, dynamic_output_shape, -1)
+
+        output_sizes = []
         dynamic_idx = 0
-        for i, dim in enumerate(shape):
-            if dim.data == -1:
-                sizes.append(dynamic_shapes[dynamic_idx])
+        for i, dim in enumerate(output_shape):
+            if dim == -1:
+                output_sizes.append(dynamic_output_shape[dynamic_idx])
                 dynamic_idx += 1
             else:
-                sizes.append(dim.data)
+                output_sizes.append(dim)
 
         self.builder.insert(
-            op := WindowOp(self.get_sym(window.name), sizes, idx, dest_type)
+            op := WindowOp(
+                self.get_sym(window.name), input_sizes, output_sizes, idx, dest_type
+            )
         )
 
         return op.result
