@@ -190,7 +190,7 @@ class WindowOp(IRDLOperation):
     input = operand_def(
         MemRefType.constr(element_type=AnyAttr()),
     )
-    input_sizes = var_operand_def()
+    sizes = var_operand_def()
     indices = var_operand_def()
     static_sizes = prop_def(DenseArrayBase)
 

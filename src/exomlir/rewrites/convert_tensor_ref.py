@@ -1,6 +1,11 @@
 from typing import cast
 from xdsl.context import Context
-from xdsl.dialects.builtin import ModuleOp, IndexType, MemRefType, IntegerAttr
+from xdsl.dialects.builtin import (
+    ModuleOp,
+    MemRefType,
+    NoneAttr,
+    StridedLayoutAttr,
+)
 from xdsl.dialects import arith, memref
 from xdsl.dialects.utils import get_dynamic_index_list
 from xdsl.passes import ModulePass
@@ -66,11 +71,11 @@ class ConvertWindowOp(RewritePattern):
         input_shape = cast(MemRefType, op.input.type).get_shape()
         output_shape = cast(MemRefType, op.result.type).get_shape()
 
-        sizes = get_dynamic_index_list(
+        sizes = [1] * (len(input_shape) - len(output_shape)) + get_dynamic_index_list(
             op.static_sizes.get_values(),
-            op.input_sizes,
+            op.sizes,
             memref.SubviewOp.DYNAMIC_INDEX,
-        )[: len(input_shape) - len(output_shape)] + list(output_shape)
+        )
 
         # compute indices
         indices = []
@@ -92,7 +97,7 @@ class ConvertWindowOp(RewritePattern):
                 ops.append(
                     mul_op := arith.MuliOp(
                         operand1=ops[-1].results[0],
-                        operand2=op.input_sizes[dynamic_idx],
+                        operand2=op.sizes[dynamic_idx],
                     )
                 )
                 dynamic_idx += 1
@@ -101,19 +106,25 @@ class ConvertWindowOp(RewritePattern):
 
             if dim == -1:
                 dynamic_stride = True
-                ops.append(arith.ConstantOp(IntegerAttr(stride, IndexType())))
 
             strides.insert(0, stride)
             stride *= dim
 
         rewriter.replace_matched_op(
             (
-                subview_op := memref.SubviewOp.get(
-                    op.input, indices, sizes, strides, op.result.type
-                ),
-                memref.CastOp.get(
-                    subview_op.result,
-                    op.result.type,
+                memref.SubviewOp.get(
+                    op.input,
+                    indices,
+                    sizes,
+                    strides,
+                    MemRefType(
+                        op.result.type.element_type,
+                        op.result.type.shape,
+                        StridedLayoutAttr(
+                            strides[len(input_shape) - len(output_shape) :], NoneAttr()
+                        ),
+                        op.result.type.memory_space,
+                    ),
                 ),
             )
         )

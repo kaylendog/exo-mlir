@@ -598,22 +598,21 @@ class IRGenerator:
         idx = [self.generate_w_access(w_access) for w_access in window.idx]
 
         input = self.get_sym(window.name)
-        input_exo_type = self.get_sym_exo_type(window.name)
         dest_type = self.get_type(window.type.as_tensor, input.type.memory_space)
 
-        (shape, dynamic_shapes) = self.get_shape(input_exo_type)
+        (shape, dynamic_shapes) = self.get_shape(window.type.as_tensor)
 
-        input_sizes = []
+        sizes = []
         dynamic_idx = 0
         for i, dim in enumerate(shape):
             if dim.data == -1:
-                input_sizes.append(dynamic_shapes[dynamic_idx])
+                sizes.append(dynamic_shapes[dynamic_idx])
                 dynamic_idx += 1
             else:
-                input_sizes.append(dim.data)
+                sizes.append(dim.data)
 
         self.builder.insert(
-            op := WindowOp(self.get_sym(window.name), input_sizes, idx, dest_type)
+            op := WindowOp(self.get_sym(window.name), sizes, idx, dest_type)
         )
 
         return op.result
