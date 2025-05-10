@@ -6,7 +6,6 @@ from exo.API import Sym
 from exo.core.LoopIR import LoopIR, T
 from xdsl.builder import Builder
 from xdsl.dialects.arith import (
-    FastMathFlagsAttr,
     AddfOp,
     AddiOp,
     AndIOp,
@@ -15,6 +14,7 @@ from xdsl.dialects.arith import (
     ConstantOp,
     DivfOp,
     DivSIOp,
+    FastMathFlagsAttr,
     MulfOp,
     MuliOp,
     NegfOp,
@@ -24,6 +24,9 @@ from xdsl.dialects.arith import (
     SubiOp,
 )
 from xdsl.dialects.builtin import (
+    I8,
+    I16,
+    I32,
     BoolAttr,
     Float16Type,
     Float32Type,
@@ -35,7 +38,6 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     MemRefType,
     ModuleOp,
-    StridedLayoutAttr,
     NoneAttr,
     StringAttr,
     f16,
@@ -45,9 +47,6 @@ from xdsl.dialects.builtin import (
     i8,
     i16,
     i32,
-    I8,
-    I16,
-    I32,
 )
 from xdsl.dialects.func import CallOp, FuncOp, ReturnOp
 from xdsl.dialects.memref import (
@@ -56,11 +55,12 @@ from xdsl.dialects.memref import (
 from xdsl.dialects.scf import ForOp, IfOp, YieldOp
 from xdsl.dialects.test import TestOp
 from xdsl.dialects.utils import get_dynamic_index_list
-from xdsl.ir import Block, BlockArgument, OpResult, Region, SSAValue, Attribute
+from xdsl.ir import Attribute, Block, BlockArgument, OpResult, Region, SSAValue
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.scoped_dict import ScopedDict
 
 from exomlir.dialects.exo import (
+    AllocOp,
     AssignOp,
     ExternOp,
     FreeOp,
@@ -69,10 +69,8 @@ from exomlir.dialects.exo import (
     ReadOp,
     ReduceOp,
     WindowOp,
-    AllocOp,
 )
 from exomlir.dialects.index import CastsOp
-
 
 MemRefTypeI8: TypeAlias = MemRefType[I8]
 MemRefTypeI16: TypeAlias = MemRefType[I16]

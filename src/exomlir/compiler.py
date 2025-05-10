@@ -1,6 +1,6 @@
+import contextlib
 import logging
 import os
-import contextlib
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -13,12 +13,16 @@ from exo.backend.win_analysis import WindowAnalysis
 from exo.core.LoopIR import LoopIR
 from exo.main import get_procs_from_module, load_user_code
 from xdsl.context import Context
-from xdsl.dialects.builtin import ModuleOp, Builtin
 from xdsl.dialects import arith, func, memref, scf
+from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.common_subexpression_elimination import (
     CommonSubexpressionElimination,
 )
+from xdsl.transforms.convert_memref_to_ptr import ConvertMemRefToPtr
+from xdsl.transforms.convert_ptr_to_llvm import ConvertPtrToLLVMPass
+from xdsl.transforms.convert_ptr_type_offsets import ConvertPtrTypeOffsetsPass
+from xdsl.transforms.convert_vector_to_ptr import ConvertVectorToPtrPass
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 
 from exomlir.dialects.exo import Exo
@@ -58,17 +62,17 @@ def analyze(p):
     return MemoryAnalysis().run(p)
 
 
-def compile_one(proc: Procedure) -> ModuleOp:
+def compile_one(proc: Procedure, lower_to_llvm=False) -> ModuleOp:
     """
     Compile a single procedure. This is an alias for `compile_many([proc])`.
     """
     if proc.is_instr():
         raise TypeError("Cannot compile an instr procedure.")
-    return compile_many([proc])
+    return compile_many([proc], lower_to_llvm=lower_to_llvm)
 
 
 def compile_many(
-    library: Sequence[Procedure], print_exo=False, cache_exo=False
+    library: Sequence[Procedure], print_exo=False, cache_exo=False, lower_to_llvm=False
 ) -> ModuleOp:
     """
     Compile a list of procedures into a single MLIR module..
@@ -104,7 +108,9 @@ def compile_many(
                 f.write("\n")
 
     # generate MLIR
-    return transform(context(), IRGenerator().generate(analyzed_procedures))
+    return transform(
+        context(), IRGenerator().generate(analyzed_procedures), lower_to_llvm
+    )
 
 
 def compile_path(
@@ -149,32 +155,22 @@ def compile_path(
     dest.write_text(str(module))
 
 
-def transform(ctx: Context, module: ModuleOp, lower_to_llvm=True) -> ModuleOp:
+def transform(ctx: Context, module: ModuleOp, lower_to_llvm=False) -> ModuleOp:
     """
     Apply transformations to an MLIR module.
     """
 
     InlineMemorySpacePass().apply(ctx, module)
-    # print(module)
-    # print("=== After InlineMemorySpacePass ===")
     module.verify()
 
     ConvertScalarRefPass().apply(ctx, module)
-    # print(module)
-    # print("=== After ConvertScalarRefPass ===")
     module.verify()
     ConvertTensorRefPass().apply(ctx, module)
-    # print(module)
-    # print("=== After ConvertTensorRefPass ===")
     module.verify()
 
     InlineAVX2Pass().apply(ctx, module)
-    # print(module)
-    # print("=== After InlineAVX2Pass ===")
     module.verify()
-    # TidyPass().apply(ctx, module)
-    # print(module)
-    # print("=== After TidyPass ===")
+    TidyPass().apply(ctx, module)
     module.verify()
 
     CanonicalizePass().apply(ctx, module)
@@ -184,13 +180,10 @@ def transform(ctx: Context, module: ModuleOp, lower_to_llvm=True) -> ModuleOp:
     if not lower_to_llvm:
         return module
 
-    CanonicalizePass().apply(ctx, module)
-    CommonSubexpressionElimination().apply(ctx, module)
-
-    # ConvertMemRefToPtr(lower_func=True).apply(ctx, module)
-    # ConvertPtrTypeOffsetsPass().apply(ctx, module)
-    # ConvertPtrToLLVMPass().apply(ctx, module)
-    # ConvertVectorPtrToLLVMPass().apply(ctx, module)
+    ConvertVectorToPtrPass().apply(ctx, module)
+    ConvertMemRefToPtr(lower_func=True).apply(ctx, module)
+    ConvertPtrTypeOffsetsPass().apply(ctx, module)
+    ConvertPtrToLLVMPass().apply(ctx, module)
 
     ReconcileUnrealizedCastsPass().apply(ctx, module)
 

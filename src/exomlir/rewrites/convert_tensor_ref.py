@@ -1,22 +1,20 @@
-from typing import cast
 from xdsl.context import Context
+from xdsl.dialects import arith, memref
 from xdsl.dialects.builtin import (
-    ModuleOp,
+    IndexType,
+    IntegerAttr,
     MemRefType,
+    ModuleOp,
     NoneAttr,
     StridedLayoutAttr,
-    IntegerAttr,
-    IndexType,
 )
-from xdsl.dialects import arith, memref
 from xdsl.dialects.utils import get_dynamic_index_list
-from xdsl.passes import ModulePass
 from xdsl.ir import Operation, OpResult
-
+from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
-    GreedyRewritePatternApplier,
     RewritePattern,
     op_type_rewrite_pattern,
 )

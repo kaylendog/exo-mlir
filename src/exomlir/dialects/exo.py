@@ -1,37 +1,37 @@
 from collections.abc import Sequence
 from typing import Annotated, ClassVar, TypeAlias
+
+from xdsl.dialects import arith, memref
 from xdsl.dialects.builtin import (
-    IntegerType,
+    I32,
+    DenseArrayBase,
+    FlatSymbolRefAttrConstr,
     Float16Type,
     Float32Type,
     Float64Type,
-    I32,
+    IntegerType,
+    MemRefType,
     Signedness,
     StringAttr,
-    MemRefType,
-    TupleType,
     SymbolRefAttr,
-    FlatSymbolRefAttrConstr,
-    DenseArrayBase,
+    TupleType,
     i64,
 )
-from xdsl.ir import Dialect, SSAValue, Operation
+from xdsl.dialects.utils import split_dynamic_index_list
+from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
-    IRDLOperation,
     AnyAttr,
-    VarConstraint,
-    Attribute,
     AnyOf,
+    Attribute,
+    AttrSizedOperandSegments,
+    IRDLOperation,
+    VarConstraint,
     irdl_op_definition,
     operand_def,
-    result_def,
     prop_def,
+    result_def,
     var_operand_def,
-    AttrSizedOperandSegments,
 )
-from xdsl.dialects import arith, memref
-from xdsl.dialects.utils import split_dynamic_index_list
-
 
 SizeType: TypeAlias = arith.IndexType
 StrideType: TypeAlias = arith.IndexType

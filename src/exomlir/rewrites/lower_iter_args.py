@@ -1,17 +1,15 @@
 from xdsl.context import Context
-from xdsl.dialects.builtin import ModuleOp, MemRefType
 from xdsl.dialects import scf
-from xdsl.passes import ModulePass
+from xdsl.dialects.builtin import MemRefType, ModuleOp
 from xdsl.ir import Region, Use
-
+from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
-    GreedyRewritePatternApplier,
     RewritePattern,
     op_type_rewrite_pattern,
 )
-
 
 from exomlir.dialects import exo
 

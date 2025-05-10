@@ -1,15 +1,14 @@
 from xdsl.context import Context
-from xdsl.dialects.builtin import ModuleOp, IndexType, MemRefType
-from xdsl.dialects import arith
+from xdsl.dialects.builtin import IndexType, MemRefType, ModuleOp
+from xdsl.ir import BlockArgument
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
-    GreedyRewritePatternApplier,
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.ir import BlockArgument
 
 from exomlir.dialects import exo, index
 

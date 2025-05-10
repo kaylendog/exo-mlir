@@ -1,20 +1,12 @@
 from xdsl.context import Context
-from xdsl.dialects.builtin import ModuleOp, MemRefType
-from xdsl.dialects import memref
+from xdsl.dialects.builtin import MemRefType, ModuleOp
 from xdsl.passes import ModulePass
-from xdsl.ir import Region, Use
-
 from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    PatternRewriteWalker,
     GreedyRewritePatternApplier,
+    PatternRewriteWalker,
     TypeConversionPattern,
-    RewritePattern,
-    op_type_rewrite_pattern,
     attr_type_rewrite_pattern,
 )
-
-from exomlir.dialects import index
 
 
 class RemoveMemorySpacePattern(TypeConversionPattern):
@@ -38,7 +30,7 @@ class TidyPass(ModulePass):
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    RemoveMemorySpacePattern(),
+                    RemoveMemorySpacePattern(recursive=True),
                 ]
             )
         ).rewrite_module(m)

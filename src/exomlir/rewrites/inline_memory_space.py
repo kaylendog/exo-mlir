@@ -1,13 +1,13 @@
 from typing import cast
-from xdsl.context import Context
-from xdsl.dialects.builtin import ModuleOp, MemRefType, StringAttr, NoneAttr
-from xdsl.dialects import memref
-from xdsl.passes import ModulePass
 
+from xdsl.context import Context
+from xdsl.dialects import memref
+from xdsl.dialects.builtin import MemRefType, ModuleOp, NoneAttr, StringAttr
+from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
-    GreedyRewritePatternApplier,
     RewritePattern,
     op_type_rewrite_pattern,
 )

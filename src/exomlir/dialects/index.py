@@ -1,14 +1,12 @@
 from xdsl.dialects.builtin import (
-    IntegerType,
-    IndexType,
     AnySignlessIntegerOrIndexType,
+    IndexType,
+    IntegerType,
 )
-from xdsl.ir import Dialect, SSAValue, Operation
-
-
+from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
-    IRDLOperation,
     Attribute,
+    IRDLOperation,
     irdl_op_definition,
     operand_def,
     result_def,
