@@ -17,14 +17,29 @@ scripts = { exo-mlir = "exomlir.main:main" }
 exoblas = ["exoblas"]
 
 [dependency-groups]
-dev = ["filecheck>=1.0.1", "lit>=18.1.8", "pytest>=8.3.4"]
+dev = ["filecheck>=1.0.1", "lit>=18.1.8", "pytest>=8.3.4", "ruff==0.11.9"]
 
 [tool.uv]
 package = true
 
 [tool.uv.sources]
-xdsl = { git = "https://github.com/kaylendog/xdsl", rev = "2be0fb683891d9ddd73d817a201711128c30e085" }
+xdsl = { git = "https://github.com/kaylendog/xdsl", rev = "84a1dc5f33b649e1ba5495d1f0cf7059039646d9" }
 exoblas = { workspace = true }
 
 [tool.uv.workspace]
 members = ["./vendor/ExoBLAS"]
+
+[tool.ruff]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "PT", "TID251", "INP"]
+ignore = [
+    "E741",  # https://beta.ruff.rs/docs/rules/ambiguous-variable-name/
+    "PT006", # https://beta.ruff.rs/docs/rules/pytest-parametrize-names-wrong-type/
+    "PT011", # https://beta.ruff.rs/docs/rules/pytest-raises-too-broad/
+    "PT012", # https://beta.ruff.rs/docs/rules/pytest-raises-with-multiple-statements/
+]
+
+[tool.ruff.lint.pycodestyle]
+max-line-length = 120

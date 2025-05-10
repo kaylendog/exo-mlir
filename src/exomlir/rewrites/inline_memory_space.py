@@ -97,7 +97,5 @@ class InlineMemorySpacePass(ModulePass):
 
     def apply(self, ctx: Context, m: ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [ConvertAllocOp(), ConvertWindowOp(), ConvertFreeOp()]
-            )
+            GreedyRewritePatternApplier([ConvertWindowOp()])
         ).rewrite_module(m)

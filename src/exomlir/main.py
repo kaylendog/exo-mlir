@@ -32,6 +32,11 @@ def main():
         action="store_true",
         help="Cache the exo analysis results to a file. This is useful for debugging.",
     )
+    parser.add_argument(
+        "--lower-to-llvm",
+        action="store_true",
+        help="Lower the generated MLIR to LLVM-compatible IR.",
+    )
 
     args = parser.parse_args()
     srcs = [Path(src) for src in args.source]
@@ -67,6 +72,7 @@ def main():
             dest if args.output != "-" else None,
             print_exo=args.print_exo,
             cache_exo=args.cache_exo,
+            lower_to_llvm=args.lower_to_llvm,
         )
 
 

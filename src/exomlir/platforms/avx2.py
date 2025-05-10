@@ -1,12 +1,16 @@
+from functools import reduce
+
 from xdsl.context import Context
-from xdsl.dialects import arith, memref, vector
+from xdsl.dialects import arith, llvm, memref, vector
 from xdsl.dialects.builtin import (
     Float32Type,
     IndexType,
     IntegerAttr,
     MemRefType,
     ModuleOp,
+    UnrealizedConversionCastOp,
     VectorType,
+    i64,
 )
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -22,20 +26,28 @@ from exomlir.dialects import exo
 
 class ConvertAllocOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.AllocOp, rewriter):
-        # require all sizes to be known
+    def match_and_rewrite(self, op: exo.AllocOp, rewriter: PatternRewriter):
+        assert isinstance(op.result.type, MemRefType)
+
         rewriter.replace_matched_op(
-            memref.AllocaOp(
-                operands=((), ()),
-                result_types=[op.result.type],
+            (
+                const_op := arith.ConstantOp(
+                    IntegerAttr(
+                        reduce(lambda x, y: x * y, op.result.type.get_shape()), i64
+                    )
+                ),
+                alloca_op := llvm.AllocaOp(
+                    const_op.result, op.result.type.element_type
+                ),
+                UnrealizedConversionCastOp.get(alloca_op.res, op.result.type),
             )
         )
 
 
 class ConvertFreeOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: exo.FreeOp, rewriter):
-        pass
+    def match_and_rewrite(self, op: exo.FreeOp, rewriter: PatternRewriter):
+        rewriter.erase_matched_op()
 
 
 class ConvertMM256StoreuPsOp(RewritePattern):
@@ -164,8 +176,8 @@ class InlineAVX2Pass(ModulePass):
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ConvertFreeOp(),
                     ConvertAllocOp(),
+                    ConvertFreeOp(),
                     ConvertMM256StoreuPsOp(),
                     ConvertMM256FmaddPsOp(),
                     ConvertMM256BroadcastSsOp(),

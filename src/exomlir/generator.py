@@ -726,6 +726,10 @@ class IRGenerator:
                     dynamic_shapes.append(self.get_sym(expr.name))
                 return IntAttr(-1)
             elif isinstance(expr, LoopIR.BinOp):
+                if self.symbol_table is not None:
+                    dynamic_shapes.append(
+                        self.cast_to_index(self.generate_binop_expr(expr))
+                    )
                 return IntAttr(-1)
             else:
                 raise IRGeneratorError(f"Invalid shape argument {expr}")

@@ -23,6 +23,8 @@ from xdsl.transforms.convert_memref_to_ptr import ConvertMemRefToPtr
 from xdsl.transforms.convert_ptr_to_llvm import ConvertPtrToLLVMPass
 from xdsl.transforms.convert_ptr_type_offsets import ConvertPtrTypeOffsetsPass
 from xdsl.transforms.convert_vector_to_ptr import ConvertVectorToPtrPass
+from xdsl.transforms.lower_affine import LowerAffinePass
+from xdsl.transforms.convert_scf_to_cf import ConvertScfToCf
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 
 from exomlir.dialects.exo import Exo
@@ -109,7 +111,9 @@ def compile_many(
 
     # generate MLIR
     return transform(
-        context(), IRGenerator().generate(analyzed_procedures), lower_to_llvm
+        context(),
+        IRGenerator().generate(analyzed_procedures),
+        lower_to_llvm=lower_to_llvm,
     )
 
 
@@ -118,6 +122,7 @@ def compile_path(
     dest: Path | None = None,
     print_exo: bool = False,
     cache_exo: bool = False,
+    lower_to_llvm: bool = False,
 ):
     """
     Compile all procedures in a Python source file to a single MLIR module, and write it to a file.
@@ -143,7 +148,9 @@ def compile_path(
     assert isinstance(library, list)
     assert all(isinstance(proc, Procedure) for proc in library)
 
-    module = compile_many(library, print_exo=print_exo, cache_exo=cache_exo)
+    module = compile_many(
+        library, print_exo=print_exo, cache_exo=cache_exo, lower_to_llvm=lower_to_llvm
+    )
 
     # print to stdout if no dest
     if not dest:
@@ -168,11 +175,6 @@ def transform(ctx: Context, module: ModuleOp, lower_to_llvm=False) -> ModuleOp:
     ConvertTensorRefPass().apply(ctx, module)
     module.verify()
 
-    InlineAVX2Pass().apply(ctx, module)
-    module.verify()
-    TidyPass().apply(ctx, module)
-    module.verify()
-
     CanonicalizePass().apply(ctx, module)
     CommonSubexpressionElimination().apply(ctx, module)
 
@@ -180,10 +182,22 @@ def transform(ctx: Context, module: ModuleOp, lower_to_llvm=False) -> ModuleOp:
     if not lower_to_llvm:
         return module
 
+    InlineAVX2Pass().apply(ctx, module)
+    module.verify()
+    TidyPass().apply(ctx, module)
+    module.verify()
+
     ConvertVectorToPtrPass().apply(ctx, module)
+    LowerAffinePass().apply(ctx, module)
     ConvertMemRefToPtr(lower_func=True).apply(ctx, module)
     ConvertPtrTypeOffsetsPass().apply(ctx, module)
     ConvertPtrToLLVMPass().apply(ctx, module)
+    ConvertScfToCf().apply(ctx, module)
+
+    CanonicalizePass().apply(ctx, module)
+    CommonSubexpressionElimination().apply(ctx, module)
+
+    module.verify()
 
     ReconcileUnrealizedCastsPass().apply(ctx, module)
 
