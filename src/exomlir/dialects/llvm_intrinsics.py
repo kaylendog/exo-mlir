@@ -45,6 +45,9 @@ class FAbsOp(IRDLOperation):
         super().__init__(
             operands=[input],
             result_types=[result_type],
+            properties={
+                "fastmath": arith.FastMathFlagsAttr("fast"),
+            },
         )
 
 
@@ -77,38 +80,8 @@ class MaskedStoreOp(IRDLOperation):
         )
 
 
-class FMAOp(IRDLOperation):
-    name = "llvm.intr.fma"
-
-    a = operand_def(LLVMCompatibleFloatConstraint)
-    b = operand_def(LLVMCompatibleFloatConstraint)
-    c = operand_def(LLVMCompatibleFloatConstraint)
-    result = result_def(LLVMCompatibleFloatConstraint)
-    fastmath = prop_def(
-        arith.FastMathFlagsAttr, default=arith.FastMathFlagsAttr("fast")
-    )
-
-    assembly_format = (
-        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
-    )
-
-    irdl_options = [ParsePropInAttrDict()]
-
-    def __init__(
-        self,
-        a: Operation | SSAValue,
-        b: Operation | SSAValue,
-        c: Operation | SSAValue,
-        result_type: Attribute,
-    ):
-        super().__init__(
-            operands=[a, b, c],
-            result_types=[result_type],
-        )
-
-
 LLVMIntrinsics = Dialect(
     "llvm.intr",
-    [FAbsOp, MaskedStoreOp, FMAOp],
+    [FAbsOp, MaskedStoreOp],
     [],
 )

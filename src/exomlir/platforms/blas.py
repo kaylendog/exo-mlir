@@ -1113,7 +1113,7 @@ class ConvertVecAddF32x8Pfx(RewritePattern):
         if op.callee.root_reference.data != "vec_add_f32x8_pfx":
             return
 
-        assert len(op.arguments) == 3
+        assert len(op.arguments) == 4
         # m: size
         assert op.arguments[0].type == i32, op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
@@ -1227,7 +1227,7 @@ class ConvertVecAddF64x4Pfx(RewritePattern):
         if op.callee.root_reference.data != "vec_add_f64x4_pfx":
             return
 
-        assert len(op.arguments) == 3
+        assert len(op.arguments) == 4
         # m: size
         assert op.arguments[0].type == i32, op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
@@ -1507,13 +1507,18 @@ class ConvertVecFmadd2F32x8(RewritePattern):
                     operands=[op.arguments[3], [zero_op.result]],
                     result_types=[VectorType(f32, [8])],
                 ),
-                fma_op := llvm_intrinsics.FMAOp(
-                    load0_op.result,
-                    load1_op.result,
-                    load2_op.result,
+                fma_op := vector.FMAOp(
+                    operands=[
+                        load0_op.result,
+                        load1_op.result,
+                        load2_op.result,
+                    ],
+                    result_types=[
+                        VectorType(f32, [8]),
+                    ],
                 ),
                 vector.StoreOp.get(
-                    fma_op.res,
+                    fma_op.result,
                     op.arguments[0],
                     [zero_op.result],
                 ),
@@ -1542,7 +1547,7 @@ class ConvertVecFmadd2F32x8Pfx(RewritePattern):
         if op.callee.root_reference.data != "vec_fmadd2_f32x8_pfx":
             return
 
-        assert len(op.arguments) == 4
+        assert len(op.arguments) == 5
         # m: size
         assert op.arguments[0].type == i32, op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
@@ -1583,17 +1588,22 @@ class ConvertVecFmadd2F32x8Pfx(RewritePattern):
                     operands=[op.arguments[4], [zero_op.result]],
                     result_types=[VectorType(f32, [8])],
                 ),
-                fma_op := llvm_intrinsics.FMAOp(
-                    load0_op.result,
-                    load1_op.result,
-                    load2_op.result,
+                fma_op := vector.FMAOp(
+                    operands=[
+                        load0_op.result,
+                        load1_op.result,
+                        load2_op.result,
+                    ],
+                    result_types=[
+                        VectorType(f32, [8]),
+                    ],
                 ),
                 ptr_cast_op := UnrealizedConversionCastOp.get(
                     [op.arguments[1]],
                     llvm.LLVMPointerType.opaque(),
                 ),
                 llvm_intrinsics.MaskedStoreOp(
-                    fma_op.res,
+                    fma_op.result,
                     ptr_cast_op.results[0],
                     mask_op.res,
                 ),
@@ -1644,13 +1654,18 @@ class ConvertVecFmadd2F64x4(RewritePattern):
                     operands=[op.arguments[3], [zero_op.result]],
                     result_types=[VectorType(f64, [4])],
                 ),
-                fma_op := llvm_intrinsics.FMAOp(
-                    load0_op.result,
-                    load1_op.result,
-                    load2_op.result,
+                fma_op := vector.FMAOp(
+                    operands=[
+                        load0_op.result,
+                        load1_op.result,
+                        load2_op.result,
+                    ],
+                    result_types=[
+                        VectorType(f64, [4]),
+                    ],
                 ),
                 vector.StoreOp.get(
-                    fma_op.res,
+                    fma_op.result,
                     op.arguments[0],
                     [zero_op.result],
                 ),
@@ -1720,17 +1735,22 @@ class ConvertVecFmadd2F64x4Pfx(RewritePattern):
                     operands=[op.arguments[4], [zero_op.result]],
                     result_types=[VectorType(f64, [4])],
                 ),
-                fma_op := llvm_intrinsics.FMAOp(
-                    load0_op.result,
-                    load1_op.result,
-                    load2_op.result,
+                fma_op := vector.FMAOp(
+                    operands=[
+                        load0_op.result,
+                        load1_op.result,
+                        load2_op.result,
+                    ],
+                    result_types=[
+                        VectorType(f64, [4]),
+                    ],
                 ),
                 ptr_cast_op := UnrealizedConversionCastOp.get(
                     [op.arguments[1]],
                     llvm.LLVMPointerType.opaque(),
                 ),
                 llvm_intrinsics.MaskedStoreOp(
-                    fma_op.res,
+                    fma_op.result,
                     ptr_cast_op.results[0],
                     mask_op.res,
                 ),
@@ -1767,7 +1787,7 @@ class ConvertVecStoreF32x8(RewritePattern):
                     result_types=[VectorType(f32, [8])],
                 ),
                 vector.StoreOp.get(
-                    load_op.res,
+                    load_op.result,
                     op.arguments[0],
                     [zero_op.result],
                 ),
@@ -1827,7 +1847,7 @@ class ConvertVecStoreF32x8Pfx(RewritePattern):
                     llvm.LLVMPointerType.opaque(),
                 ),
                 llvm_intrinsics.MaskedStoreOp(
-                    load_op.res,
+                    load_op.result,
                     ptr_cast_op.results[0],
                     mask_op.res,
                 ),
@@ -1864,7 +1884,7 @@ class ConvertVecStoreF64x4(RewritePattern):
                     result_types=[VectorType(f64, [4])],
                 ),
                 vector.StoreOp.get(
-                    load_op.res,
+                    load_op.result,
                     op.arguments[0],
                     [zero_op.result],
                 ),
@@ -1897,6 +1917,7 @@ class ConvertVecStoreF64x4Pfx(RewritePattern):
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src: [f64][4] @ VEC_AVX2
         assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+
         rewriter.replace_matched_op(
             (
                 zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
@@ -1923,7 +1944,7 @@ class ConvertVecStoreF64x4Pfx(RewritePattern):
                     llvm.LLVMPointerType.opaque(),
                 ),
                 llvm_intrinsics.MaskedStoreOp(
-                    load_op.res,
+                    load_op.result,
                     ptr_cast_op.results[0],
                     mask_op.res,
                 ),
