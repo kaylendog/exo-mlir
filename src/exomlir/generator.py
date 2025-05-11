@@ -515,9 +515,9 @@ class IRGenerator:
         Generate a floating point binary operation expression.
         """
 
-        lhs = self.generate_expr(binop.lhs)
-        rhs = self.generate_expr(binop.rhs)
         type = self.get_type(binop.type)
+        lhs = self.cast_to(self.generate_expr(binop.lhs), type)
+        rhs = self.cast_to(self.generate_expr(binop.rhs), type)
 
         if binop.op == "+":
             binop = AddfOp(lhs, rhs, result_type=type, flags=FastMathFlagsAttr("none"))
@@ -559,8 +559,8 @@ class IRGenerator:
         return binop.result
 
     def generate_binop_expr_cmp(self, binop):
-        lhs = self.generate_expr(binop.lhs)
-        rhs = self.generate_expr(binop.rhs)
+        lhs = self.cast_to(self.generate_expr(binop.lhs), i1)
+        rhs = self.cast_to(self.generate_expr(binop.rhs), i1)
 
         # boolean operations
         if lhs.type == i1:

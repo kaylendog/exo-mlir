@@ -4,14 +4,19 @@ from typing import Annotated, ClassVar, TypeAlias
 from xdsl.dialects import arith, memref
 from xdsl.dialects.builtin import (
     I32,
+    AnyFloat,
     DenseArrayBase,
     FlatSymbolRefAttrConstr,
     Float16Type,
     Float32Type,
     Float64Type,
+    FloatAttr,
+    IndexTypeConstr,
+    IntegerAttr,
     IntegerType,
     MemRefType,
     Signedness,
+    SignlessIntegerConstraint,
     StringAttr,
     SymbolRefAttr,
     TupleType,
@@ -24,7 +29,9 @@ from xdsl.irdl import (
     AnyOf,
     Attribute,
     AttrSizedOperandSegments,
+    BaseAttr,
     IRDLOperation,
+    TypedAttributeConstraint,
     VarConstraint,
     irdl_op_definition,
     operand_def,
@@ -68,6 +75,36 @@ class AllocOp(IRDLOperation):
             operands=[],
             result_types=[result_type],
             properties={"mem": StringAttr(mem)},
+        )
+
+
+@irdl_op_definition
+class ScalarOp(IRDLOperation):
+    name = "exo.scalar"
+
+    _T: ClassVar = VarConstraint("T", AnyAttr())
+    result = result_def(_T)
+    value = prop_def(
+        TypedAttributeConstraint(
+            IntegerAttr.constr(type=SignlessIntegerConstraint | IndexTypeConstr)
+            | BaseAttr[FloatAttr[AnyFloat]](FloatAttr),
+            _T,
+        )
+    )
+    mem = prop_def(StringAttr)
+
+    def __init__(
+        self,
+        value: Attribute,
+        mem: str,
+        result_type: Attribute,
+    ) -> None:
+        print(f"ScalarOp: {value}, {mem}, {result_type}")
+
+        super().__init__(
+            operands=[],
+            result_types=[result_type],
+            properties={"value": value, "mem": StringAttr(mem)},
         )
 
 
@@ -277,6 +314,6 @@ class ExternOp(IRDLOperation):
 
 Exo = Dialect(
     "exo",
-    [AssignOp, ReduceOp, ReadOp, WindowOp, IntervalOp, InstrOp],
+    [AssignOp, ScalarOp, ReduceOp, ReadOp, WindowOp, IntervalOp, InstrOp],
     [],
 )

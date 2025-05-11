@@ -39,6 +39,22 @@ class ConvertAssignOp(RewritePattern):
         if len(op.indices) < 1:
             return
 
+        assert isinstance(op.input.type, MemRefType)
+
+        # if the value is a scalar memref, we need to load
+        if isinstance(op.value.type, MemRefType):
+            assert op.value.type.get_shape() == (1,), (
+                f"Expected scalar memref type, got {op.value.type}"
+            )
+
+            return rewriter.replace_matched_op(
+                (
+                    zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
+                    load_op := memref.LoadOp.get(op.value, [zero_op.result]),
+                    memref.StoreOp.get(load_op.res, op.input, op.indices),
+                )
+            )
+
         rewriter.replace_matched_op(memref.StoreOp.get(op.value, op.input, op.indices))
 
 
@@ -51,12 +67,28 @@ class ConvertReduceOp(RewritePattern):
 
         assert isinstance(op.input.type, MemRefType)
 
+        ops = []
+        value = op.value
+
+        # if the value is a scalar memref, we need to load
+        if isinstance(op.value.type, MemRefType):
+            assert op.value.type.get_shape() == (1,), (
+                f"Expected scalar memref type, got {op.value.type}"
+            )
+
+            ops.append(zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())))
+            ops.append(
+                load_op := memref.LoadOp.get(op.value, [zero_op.result]),
+            )
+            value = load_op.res
+
         rewriter.replace_matched_op(
             (
+                *ops,
                 load_op := memref.LoadOp.get(op.input, op.indices),
                 add_op := arith.AddfOp(
                     operand1=load_op.results[0],
-                    operand2=op.value,
+                    operand2=value,
                     flags=arith.FastMathFlagsAttr("none"),
                     result_type=op.input.type.element_type,
                 ),
