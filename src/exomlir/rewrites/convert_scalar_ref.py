@@ -8,7 +8,7 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     NoneAttr,
 )
-from xdsl.ir import Block, BlockArgument, Region, Use
+from xdsl.ir import BlockArgument, Region, Use
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -235,7 +235,9 @@ class ConvertScalarFuncArgsToTensor(RewritePattern):
 
             mutated = any(
                 isinstance(use.operation, exo.AssignOp)
+                and use.operation.input == arg
                 or isinstance(use.operation, exo.ReduceOp)
+                and use.operation.input == arg
                 for use in arg.uses
             )
 

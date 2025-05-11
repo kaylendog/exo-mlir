@@ -1518,7 +1518,7 @@ class ConvertVecFmadd2F32x8(RewritePattern):
                     ],
                 ),
                 vector.StoreOp.get(
-                    fma_op.result,
+                    fma_op.res,
                     op.arguments[0],
                     [zero_op.result],
                 ),
@@ -1603,7 +1603,7 @@ class ConvertVecFmadd2F32x8Pfx(RewritePattern):
                     llvm.LLVMPointerType.opaque(),
                 ),
                 llvm_intrinsics.MaskedStoreOp(
-                    fma_op.result,
+                    fma_op.res,
                     ptr_cast_op.results[0],
                     mask_op.res,
                 ),
@@ -1656,8 +1656,11 @@ class ConvertVecFmadd2F64x4(RewritePattern):
                 ),
                 fma_op := vector.FMAOp(
                     operands=[
+                        # lhs
                         load0_op.result,
+                        # rhs
                         load1_op.result,
+                        # acc
                         load2_op.result,
                     ],
                     result_types=[
@@ -1665,7 +1668,7 @@ class ConvertVecFmadd2F64x4(RewritePattern):
                     ],
                 ),
                 vector.StoreOp.get(
-                    fma_op.result,
+                    fma_op.res,
                     op.arguments[0],
                     [zero_op.result],
                 ),
@@ -1737,8 +1740,11 @@ class ConvertVecFmadd2F64x4Pfx(RewritePattern):
                 ),
                 fma_op := vector.FMAOp(
                     operands=[
+                        # lhs
                         load0_op.result,
+                        # rhs
                         load1_op.result,
+                        # acc
                         load2_op.result,
                     ],
                     result_types=[
@@ -1750,7 +1756,7 @@ class ConvertVecFmadd2F64x4Pfx(RewritePattern):
                     llvm.LLVMPointerType.opaque(),
                 ),
                 llvm_intrinsics.MaskedStoreOp(
-                    fma_op.result,
+                    fma_op.res,
                     ptr_cast_op.results[0],
                     mask_op.res,
                 ),
@@ -1952,8 +1958,1207 @@ class ConvertVecStoreF64x4Pfx(RewritePattern):
         )
 
 
+class ConvertVecFmaddRedF32x8(RewritePattern):
+    """
+    def vec_fmadd_red_f32x8(dst: [f32][8] @ VEC_AVX2, src1: [f32][8] @ VEC_AVX2,
+                        src2: [f32][8] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_fmadd_ps({src1_data}, {src2_data}, {dst_data});
+    assert stride(dst, 0) == 1
+    assert stride(src1, 0) == 1
+    assert stride(src2, 0) == 1
+    for i in seq(0, 8):
+        dst[i] += src1[i] * src2[i]
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+        if op.callee.root_reference.data != "vec_fmadd_red_f32x8":
+            return
+
+        assert len(op.arguments) == 3
+        # dst: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        # src1: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        # src2: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+
+        rewriter.replace_matched_op(
+            (
+                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
+                load0_op := vector.LoadOp(
+                    operands=[op.arguments[0], [zero_op.result]],
+                    result_types=[VectorType(f32, [8])],
+                ),
+                load1_op := vector.LoadOp(
+                    operands=[op.arguments[1], [zero_op.result]],
+                    result_types=[VectorType(f32, [8])],
+                ),
+                load2_op := vector.LoadOp(
+                    operands=[op.arguments[2], [zero_op.result]],
+                    result_types=[VectorType(f32, [8])],
+                ),
+                fma_op := vector.FMAOp(
+                    operands=[
+                        # lhs
+                        load1_op.result,
+                        # rhs
+                        load2_op.result,
+                        # acc
+                        load0_op.result,
+                    ],
+                    result_types=[
+                        VectorType(f32, [8]),
+                    ],
+                ),
+                vector.StoreOp.get(
+                    fma_op.res,
+                    op.arguments[0],
+                    [zero_op.result],
+                ),
+            )
+        )
+
+
+class ConvertVecFmaddRedF32x8Pfx(RewritePattern):
+    """
+    def vec_fmadd_red_f32x8_pfx(m: size, dst: [f32][8] @ VEC_AVX2,
+                            src1: [f32][8] @ VEC_AVX2,
+                            src2: [f32][8] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_fmadd_ps({src1_data}, {src2_data}, {dst_data});
+    assert m <= 8
+    assert stride(dst, 0) == 1
+    assert stride(src1, 0) == 1
+    assert stride(src2, 0) == 1
+    for i in seq(0, 8):
+        if i < m:
+            dst[i] += src1[i] * src2[i]
+
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+        if op.callee.root_reference.data != "vec_fmadd_red_f32x8_pfx":
+            return
+
+        assert len(op.arguments) == 4
+        # m: size
+        assert op.arguments[0].type == i32, op.arguments[0].type
+        # dst: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        # src1: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        # src2: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[3].type, MemRefType), op.arguments[3].type
+
+        rewriter.replace_matched_op(
+            (
+                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
+                indices_op := arith.ConstantOp(
+                    DenseIntOrFPElementsAttr.create_dense_int(
+                        VectorType(i32, [8]), [0, 1, 2, 3, 4, 5, 6, 7]
+                    ),
+                ),
+                broadcast_thresh_op := vector.BroadcastOp(
+                    operands=[op.arguments[0]],
+                    result_types=[VectorType(i32, [8])],
+                ),
+                mask_op := llvm.ICmpOp(
+                    indices_op.result,
+                    broadcast_thresh_op.vector,
+                    IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
+                ),
+                load0_op := vector.LoadOp(
+                    operands=[op.arguments[1], [zero_op.result]],
+                    result_types=[VectorType(f32, [8])],
+                ),
+                load1_op := vector.LoadOp(
+                    operands=[op.arguments[2], [zero_op.result]],
+                    result_types=[VectorType(f32, [8])],
+                ),
+                load2_op := vector.LoadOp(
+                    operands=[op.arguments[3], [zero_op.result]],
+                    result_types=[VectorType(f32, [8])],
+                ),
+                fma_op := vector.FMAOp(
+                    operands=[
+                        # lhs
+                        load1_op.result,
+                        # rhs
+                        load2_op.result,
+                        # acc
+                        load0_op.result,
+                    ],
+                    result_types=[
+                        VectorType(f32, [8]),
+                    ],
+                ),
+                ptr_cast_op := UnrealizedConversionCastOp.get(
+                    [op.arguments[1]],
+                    llvm.LLVMPointerType.opaque(),
+                ),
+                llvm_intrinsics.MaskedStoreOp(
+                    fma_op.res,
+                    ptr_cast_op.results[0],
+                    mask_op.res,
+                ),
+            )
+        )
+
+
+class ConvertVecFmaddRedF64x4(RewritePattern):
+    """
+    def vec_fmadd_red_f64x4(dst: [f64][4] @ VEC_AVX2, src1: [f64][4] @ VEC_AVX2,
+                        src2: [f64][4] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_fmadd_pd({src1_data}, {src2_data}, {dst_data});
+    assert stride(dst, 0) == 1
+    assert stride(src1, 0) == 1
+    assert stride(src2, 0) == 1
+    for i in seq(0, 4):
+        dst[i] += src1[i] * src2[i]
+
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+        if op.callee.root_reference.data != "vec_fmadd_red_f64x4":
+            return
+
+        assert len(op.arguments) == 3
+        # dst: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        # src1: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        # src2: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+
+        rewriter.replace_matched_op(
+            (
+                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
+                load0_op := vector.LoadOp(
+                    operands=[op.arguments[0], [zero_op.result]],
+                    result_types=[VectorType(f64, [4])],
+                ),
+                load1_op := vector.LoadOp(
+                    operands=[op.arguments[1], [zero_op.result]],
+                    result_types=[VectorType(f64, [4])],
+                ),
+                load2_op := vector.LoadOp(
+                    operands=[op.arguments[2], [zero_op.result]],
+                    result_types=[VectorType(f64, [4])],
+                ),
+                fma_op := vector.FMAOp(
+                    operands=[
+                        # lhs
+                        load1_op.result,
+                        # rhs
+                        load2_op.result,
+                        # acc
+                        load0_op.result,
+                    ],
+                    result_types=[
+                        VectorType(f64, [4]),
+                    ],
+                ),
+                vector.StoreOp.get(
+                    fma_op.res,
+                    op.arguments[0],
+                    [zero_op.result],
+                ),
+            )
+        )
+
+
+class ConvertVecFmaddRedF64x4Pfx(RewritePattern):
+    """
+    def vec_fmadd_red_f64x4_pfx(m: size, dst: [f64][4] @ VEC_AVX2,
+                            src1: [f64][4] @ VEC_AVX2,
+                            src2: [f64][4] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_fmadd_pd({src1_data}, {src2_data}, {dst_data});
+    assert m <= 4
+    assert stride(dst, 0) == 1
+    assert stride(src1, 0) == 1
+    assert stride(src2, 0) == 1
+    for i in seq(0, 4):
+        if i < m:
+            dst[i] += src1[i] * src2[i]
+
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+        if op.callee.root_reference.data != "vec_fmadd_red_f64x4_pfx":
+            return
+
+        assert len(op.arguments) == 4
+        # m: size
+        assert op.arguments[0].type == i32, op.arguments[0].type
+        # dst: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        # src1: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        # src2: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[3].type, MemRefType), op.arguments[3].type
+
+        rewriter.replace_matched_op(
+            (
+                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
+                indices_op := arith.ConstantOp(
+                    DenseIntOrFPElementsAttr.create_dense_int(
+                        VectorType(i32, [4]), [0, 1, 2, 3]
+                    ),
+                ),
+                broadcast_thresh_op := vector.BroadcastOp(
+                    operands=[op.arguments[0]],
+                    result_types=[VectorType(i32, [4])],
+                ),
+                mask_op := llvm.ICmpOp(
+                    indices_op.result,
+                    broadcast_thresh_op.vector,
+                    IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
+                ),
+                load0_op := vector.LoadOp(
+                    operands=[op.arguments[1], [zero_op.result]],
+                    result_types=[VectorType(f64, [4])],
+                ),
+                load1_op := vector.LoadOp(
+                    operands=[op.arguments[2], [zero_op.result]],
+                    result_types=[VectorType(f64, [4])],
+                ),
+                load2_op := vector.LoadOp(
+                    operands=[op.arguments[3], [zero_op.result]],
+                    result_types=[VectorType(f64, [4])],
+                ),
+                fma_op := vector.FMAOp(
+                    operands=[
+                        # lhs
+                        load1_op.result,
+                        # rhs
+                        load2_op.result,
+                        # acc
+                        load0_op.result,
+                    ],
+                    result_types=[
+                        VectorType(f64, [4]),
+                    ],
+                ),
+                ptr_cast_op := UnrealizedConversionCastOp.get(
+                    [op.arguments[1]],
+                    llvm.LLVMPointerType.opaque(),
+                ),
+                llvm_intrinsics.MaskedStoreOp(
+                    fma_op.res,
+                    ptr_cast_op.results[0],
+                    mask_op.res,
+                ),
+            )
+        )
+
+
+class ConvertVecFmadd1F32x8(RewritePattern):
+    """
+    def vec_fmadd1_f32x8(dst: [f32][8] @ VEC_AVX2, src1: [f32][8] @ VEC_AVX2,
+                     src2: [f32][8] @ VEC_AVX2, src3: [f32][8] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_fmadd_ps({src1_data}, {src2_data}, {src3_data});
+    assert stride(dst, 0) == 1
+    assert stride(src1, 0) == 1
+    assert stride(src2, 0) == 1
+    assert stride(src3, 0) == 1
+    for i in seq(0, 8):
+        dst[i] = src1[i] * src2[i] + src3[i]
+
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+        if op.callee.root_reference.data != "vec_fmadd1_f32x8":
+            return
+
+        assert len(op.arguments) == 4
+        # dst: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        # src1: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        # src2: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        # src3: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[3].type, MemRefType), op.arguments[3].type
+
+        rewriter.replace_matched_op(
+            (
+                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
+                load1_op := vector.LoadOp(
+                    operands=[op.arguments[1], [zero_op.result]],
+                    result_types=[VectorType(f32, [8])],
+                ),
+                load2_op := vector.LoadOp(
+                    operands=[op.arguments[2], [zero_op.result]],
+                    result_types=[VectorType(f32, [8])],
+                ),
+                load3_op := vector.LoadOp(
+                    operands=[op.arguments[3], [zero_op.result]],
+                    result_types=[VectorType(f32, [8])],
+                ),
+                fma_op := vector.FMAOp(
+                    operands=[
+                        # lhs
+                        load1_op.result,
+                        # rhs
+                        load2_op.result,
+                        # acc
+                        load3_op.result,
+                    ],
+                    result_types=[
+                        VectorType(f32, [8]),
+                    ],
+                ),
+                vector.StoreOp.get(
+                    fma_op.res,
+                    op.arguments[0],
+                    [zero_op.result],
+                ),
+            )
+        )
+
+
+class ConvertVecFmadd1F32x8Pfx(RewritePattern):
+    """
+    def vec_fmadd1_f32x8_pfx(m: size, dst: [f32][8] @ VEC_AVX2,
+                         src1: [f32][8] @ VEC_AVX2, src2: [f32][8] @ VEC_AVX2,
+                         src3: [f32][8] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_fmadd_ps({src1_data}, {src2_data}, {src3_data});
+    assert m <= 8
+    assert stride(dst, 0) == 1
+    assert stride(src1, 0) == 1
+    assert stride(src2, 0) == 1
+    assert stride(src3, 0) == 1
+    for i in seq(0, 8):
+        if i < m:
+            dst[i] = src1[i] * src2[i] + src3[i]
+
+
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+        if op.callee.root_reference.data != "vec_fmadd1_f32x8_pfx":
+            return
+
+        assert len(op.arguments) == 5
+        # m: size
+        assert op.arguments[0].type == i32, op.arguments[0].type
+        # dst: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        # src1: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        # src2: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[3].type, MemRefType), op.arguments[3].type
+        # src3: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[4].type, MemRefType), op.arguments[4].type
+
+        rewriter.replace_matched_op(
+            (
+                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
+                indices_op := arith.ConstantOp(
+                    DenseIntOrFPElementsAttr.create_dense_int(
+                        VectorType(i32, [8]), [0, 1, 2, 3, 4, 5, 6, 7]
+                    ),
+                ),
+                broadcast_thresh_op := vector.BroadcastOp(
+                    operands=[op.arguments[0]],
+                    result_types=[VectorType(i32, [8])],
+                ),
+                mask_op := llvm.ICmpOp(
+                    indices_op.result,
+                    broadcast_thresh_op.vector,
+                    IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
+                ),
+                load1_op := vector.LoadOp(
+                    operands=[op.arguments[2], [zero_op.result]],
+                    result_types=[VectorType(f32, [8])],
+                ),
+                load2_op := vector.LoadOp(
+                    operands=[op.arguments[3], [zero_op.result]],
+                    result_types=[VectorType(f32, [8])],
+                ),
+                load3_op := vector.LoadOp(
+                    operands=[op.arguments[4], [zero_op.result]],
+                    result_types=[VectorType(f32, [8])],
+                ),
+                fma_op := vector.FMAOp(
+                    operands=[
+                        # lhs
+                        load1_op.result,
+                        # rhs
+                        load2_op.result,
+                        # acc
+                        load3_op.result,
+                    ],
+                    result_types=[
+                        VectorType(f32, [8]),
+                    ],
+                ),
+                ptr_cast_op := UnrealizedConversionCastOp.get(
+                    [op.arguments[1]],
+                    llvm.LLVMPointerType.opaque(),
+                ),
+                llvm_intrinsics.MaskedStoreOp(
+                    fma_op.res,
+                    ptr_cast_op.results[0],
+                    mask_op.res,
+                ),
+            )
+        )
+
+
+class ConvertVecFmadd1F64x4(RewritePattern):
+    """
+    def vec_fmadd1_f64x4(dst: [f64][4] @ VEC_AVX2, src1: [f64][4] @ VEC_AVX2,
+                     src2: [f64][4] @ VEC_AVX2, src3: [f64][4] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_fmadd_pd({src1_data}, {src2_data}, {src3_data});
+    assert stride(dst, 0) == 1
+    assert stride(src1, 0) == 1
+    assert stride(src2, 0) == 1
+    assert stride(src3, 0) == 1
+    for i in seq(0, 4):
+        dst[i] = src1[i] * src2[i] + src3[i]
+
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+        if op.callee.root_reference.data != "vec_fmadd1_f64x4":
+            return
+
+        assert len(op.arguments) == 4
+        # dst: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        # src1: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        # src2: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        # src3: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[3].type, MemRefType), op.arguments[3].type
+
+        rewriter.replace_matched_op(
+            (
+                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
+                load1_op := vector.LoadOp(
+                    operands=[op.arguments[1], [zero_op.result]],
+                    result_types=[VectorType(f64, [4])],
+                ),
+                load2_op := vector.LoadOp(
+                    operands=[op.arguments[2], [zero_op.result]],
+                    result_types=[VectorType(f64, [4])],
+                ),
+                load3_op := vector.LoadOp(
+                    operands=[op.arguments[3], [zero_op.result]],
+                    result_types=[VectorType(f64, [4])],
+                ),
+                fma_op := vector.FMAOp(
+                    operands=[
+                        # lhs
+                        load1_op.result,
+                        # rhs
+                        load2_op.result,
+                        # acc
+                        load3_op.result,
+                    ],
+                    result_types=[
+                        VectorType(f64, [4]),
+                    ],
+                ),
+                vector.StoreOp.get(
+                    fma_op.res,
+                    op.arguments[0],
+                    [zero_op.result],
+                ),
+            )
+        )
+
+
+class ConvertVecFmadd1F64x4Pfx(RewritePattern):
+    """
+    def vec_fmadd1_f64x4_pfx(m: size, dst: [f64][4] @ VEC_AVX2,
+                         src1: [f64][4] @ VEC_AVX2, src2: [f64][4] @ VEC_AVX2,
+                         src3: [f64][4] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_fmadd_pd({src1_data}, {src2_data}, {src3_data});
+    assert m <= 4
+    assert stride(dst, 0) == 1
+    assert stride(src1, 0) == 1
+    assert stride(src2, 0) == 1
+    assert stride(src3, 0) == 1
+    for i in seq(0, 4):
+        if i < m:
+            dst[i] = src1[i] * src2[i] + src3[i]
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+        if op.callee.root_reference.data != "vec_fmadd1_f64x4_pfx":
+            return
+
+        assert len(op.arguments) == 5
+        # m: size
+        assert op.arguments[0].type == i32, op.arguments[0].type
+        # dst: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        # src1: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        # src2: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[3].type, MemRefType), op.arguments[3].type
+        # src3: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[4].type, MemRefType), op.arguments[4].type
+
+        rewriter.replace_matched_op(
+            (
+                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
+                indices_op := arith.ConstantOp(
+                    DenseIntOrFPElementsAttr.create_dense_int(
+                        VectorType(i32, [4]), [0, 1, 2, 3]
+                    ),
+                ),
+                broadcast_thresh_op := vector.BroadcastOp(
+                    operands=[op.arguments[0]],
+                    result_types=[VectorType(i32, [4])],
+                ),
+                mask_op := llvm.ICmpOp(
+                    indices_op.result,
+                    broadcast_thresh_op.vector,
+                    IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
+                ),
+                load1_op := vector.LoadOp(
+                    operands=[op.arguments[2], [zero_op.result]],
+                    result_types=[VectorType(f64, [4])],
+                ),
+                load2_op := vector.LoadOp(
+                    operands=[op.arguments[3], [zero_op.result]],
+                    result_types=[VectorType(f64, [4])],
+                ),
+                load3_op := vector.LoadOp(
+                    operands=[op.arguments[4], [zero_op.result]],
+                    result_types=[VectorType(f64, [4])],
+                ),
+                fma_op := vector.FMAOp(
+                    operands=[
+                        # lhs
+                        load1_op.result,
+                        # rhs
+                        load2_op.result,
+                        # acc
+                        load3_op.result,
+                    ],
+                    result_types=[
+                        VectorType(f64, [4]),
+                    ],
+                ),
+                ptr_cast_op := UnrealizedConversionCastOp.get(
+                    [op.arguments[1]],
+                    llvm.LLVMPointerType.opaque(),
+                ),
+                llvm_intrinsics.MaskedStoreOp(
+                    fma_op.res,
+                    ptr_cast_op.results[0],
+                    mask_op.res,
+                ),
+            )
+        )
+
+
+class ConvertVecMulF32x8(RewritePattern):
+    """
+    def vec_mul_f32x8(dst: [f32][8] @ VEC_AVX2, src1: [f32][8] @ VEC_AVX2,
+                  src2: [f32][8] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_mul_ps({src1_data}, {src2_data});
+    assert stride(dst, 0) == 1
+    assert stride(src1, 0) == 1
+    assert stride(src2, 0) == 1
+    for i in seq(0, 8):
+        dst[i] = src1[i] * src2[i]
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+        if op.callee.root_reference.data != "vec_mul_f32x8":
+            return
+
+        assert len(op.arguments) == 3
+        # dst: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        # src1: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        # src2: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+
+        rewriter.replace_matched_op(
+            (
+                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
+                load1_op := vector.LoadOp(
+                    operands=[op.arguments[1], [zero_op.result]],
+                    result_types=[VectorType(f32, [8])],
+                ),
+                load2_op := vector.LoadOp(
+                    operands=[op.arguments[2], [zero_op.result]],
+                    result_types=[VectorType(f32, [8])],
+                ),
+                mul_op := llvm.FMulOp(
+                    load1_op.result,
+                    load2_op.result,
+                ),
+                vector.StoreOp.get(
+                    mul_op.res,
+                    op.arguments[0],
+                    [zero_op.result],
+                ),
+            )
+        )
+
+
+class ConvertVecMulF32x8Pfx(RewritePattern):
+    """
+    def vec_mul_f32x8_pfx(m: size, dst: [f32][8] @ VEC_AVX2,
+                      src1: [f32][8] @ VEC_AVX2, src2: [f32][8] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_mul_ps({src1_data}, {src2_data});
+    assert m <= 8
+    assert stride(dst, 0) == 1
+    assert stride(src1, 0) == 1
+    assert stride(src2, 0) == 1
+    for i in seq(0, 8):
+        if i < m:
+            dst[i] = src1[i] * src2[i]
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+        if op.callee.root_reference.data != "vec_mul_f32x8_pfx":
+            return
+
+        assert len(op.arguments) == 4
+        # m: size
+        assert op.arguments[0].type == i32, op.arguments[0].type
+        # dst: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        # src1: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        # src2: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[3].type, MemRefType), op.arguments[3].type
+
+        rewriter.replace_matched_op(
+            (
+                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
+                indices_op := arith.ConstantOp(
+                    DenseIntOrFPElementsAttr.create_dense_int(
+                        VectorType(i32, [8]), [0, 1, 2, 3, 4, 5, 6, 7]
+                    ),
+                ),
+                broadcast_thresh_op := vector.BroadcastOp(
+                    operands=[op.arguments[0]],
+                    result_types=[VectorType(i32, [8])],
+                ),
+                mask_op := llvm.ICmpOp(
+                    indices_op.result,
+                    broadcast_thresh_op.vector,
+                    IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
+                ),
+                load1_op := vector.LoadOp(
+                    operands=[op.arguments[2], [zero_op.result]],
+                    result_types=[VectorType(f32, [8])],
+                ),
+                load2_op := vector.LoadOp(
+                    operands=[op.arguments[3], [zero_op.result]],
+                    result_types=[VectorType(f32, [8])],
+                ),
+                mul_op := llvm.FMulOp(
+                    load1_op.result,
+                    load2_op.result,
+                ),
+                ptr_cast_op := UnrealizedConversionCastOp.get(
+                    [op.arguments[1]],
+                    llvm.LLVMPointerType.opaque(),
+                ),
+                llvm_intrinsics.MaskedStoreOp(
+                    mul_op.res,
+                    ptr_cast_op.results[0],
+                    mask_op.res,
+                ),
+            )
+        )
+
+
+class ConvertVecMulF64x4(RewritePattern):
+    """
+    def vec_mul_f64x4(dst: [f64][4] @ VEC_AVX2, src1: [f64][4] @ VEC_AVX2,
+                  src2: [f64][4] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_mul_pd({src1_data}, {src2_data});
+    assert stride(dst, 0) == 1
+    assert stride(src1, 0) == 1
+    assert stride(src2, 0) == 1
+    for i in seq(0, 4):
+        dst[i] = src1[i] * src2[i]
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+        if op.callee.root_reference.data != "vec_mul_f64x4":
+            return
+
+        assert len(op.arguments) == 3
+        # dst: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        # src1: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        # src2: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+
+        rewriter.replace_matched_op(
+            (
+                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
+                load1_op := vector.LoadOp(
+                    operands=[op.arguments[1], [zero_op.result]],
+                    result_types=[VectorType(f64, [4])],
+                ),
+                load2_op := vector.LoadOp(
+                    operands=[op.arguments[2], [zero_op.result]],
+                    result_types=[VectorType(f64, [4])],
+                ),
+                mul_op := llvm.FMulOp(
+                    load1_op.result,
+                    load2_op.result,
+                ),
+                vector.StoreOp.get(
+                    mul_op.res,
+                    op.arguments[0],
+                    [zero_op.result],
+                ),
+            )
+        )
+
+
+class ConvertVecMulF64x4Pfx(RewritePattern):
+    """
+    def vec_mul_f64x4_pfx(m: size, dst: [f64][4] @ VEC_AVX2,
+                      src1: [f64][4] @ VEC_AVX2, src2: [f64][4] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_mul_pd({src1_data}, {src2_data});
+    assert m <= 4
+    assert stride(dst, 0) == 1
+    assert stride(src1, 0) == 1
+    assert stride(src2, 0) == 1
+    for i in seq(0, 4):
+        if i < m:
+            dst[i] = src1[i] * src2[i]
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+        if op.callee.root_reference.data != "vec_mul_f64x4_pfx":
+            return
+
+        assert len(op.arguments) == 4
+        # m: size
+        assert op.arguments[0].type == i32, op.arguments[0].type
+        # dst: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        # src1: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        # src2: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[3].type, MemRefType), op.arguments[3].type
+
+        rewriter.replace_matched_op(
+            (
+                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
+                indices_op := arith.ConstantOp(
+                    DenseIntOrFPElementsAttr.create_dense_int(
+                        VectorType(i32, [4]), [0, 1, 2, 3]
+                    ),
+                ),
+                broadcast_thresh_op := vector.BroadcastOp(
+                    operands=[op.arguments[0]],
+                    result_types=[VectorType(i32, [4])],
+                ),
+                mask_op := llvm.ICmpOp(
+                    indices_op.result,
+                    broadcast_thresh_op.vector,
+                    IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
+                ),
+                load1_op := vector.LoadOp(
+                    operands=[op.arguments[2], [zero_op.result]],
+                    result_types=[VectorType(f64, [4])],
+                ),
+                load2_op := vector.LoadOp(
+                    operands=[op.arguments[3], [zero_op.result]],
+                    result_types=[VectorType(f64, [4])],
+                ),
+                mul_op := llvm.FMulOp(
+                    load1_op.result,
+                    load2_op.result,
+                ),
+                ptr_cast_op := UnrealizedConversionCastOp.get(
+                    [op.arguments[1]],
+                    llvm.LLVMPointerType.opaque(),
+                ),
+                llvm_intrinsics.MaskedStoreOp(
+                    mul_op.res, ptr_cast_op.results[0], mask_op.res
+                ),
+            )
+        )
+
+
+class ConvertVecNegF32x8(RewritePattern):
+    """
+    def vec_neg_f32x8(dst: [f32][8] @ VEC_AVX2, src: [f32][8] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_xor_ps({src_data}, _mm256_castsi256_ps(_mm256_set1_epi32(0x80000000)));
+    assert stride(dst, 0) == 1
+    assert stride(src, 0) == 1
+    for i in seq(0, 8):
+        dst[i] = -src[i]
+
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+        if op.callee.root_reference.data != "vec_neg_f32x8":
+            return
+
+        assert len(op.arguments) == 2
+        # dst: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        # src: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+
+        rewriter.replace_matched_op(
+            (
+                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
+                zero_vec_op := arith.ConstantOp(
+                    DenseIntOrFPElementsAttr.create_dense_float(
+                        VectorType(f32, [8]), [0.0] * 8
+                    )
+                ),
+                load_op := vector.LoadOp(
+                    operands=[op.arguments[1], [zero_op.result]],
+                    result_types=[VectorType(f32, [8])],
+                ),
+                # missing llvm.FNeg
+                neg_op := llvm.FSubOp(
+                    zero_vec_op.result,
+                    load_op.result,
+                ),
+                vector.StoreOp.get(
+                    neg_op.res,
+                    op.arguments[0],
+                    [zero_op.result],
+                ),
+            )
+        )
+
+
+class ConvertVecNegF32x8Pfx(RewritePattern):
+    """
+    def vec_neg_f32x8_pfx(m: size, dst: [f32][8] @ VEC_AVX2,
+                      src: [f32][8] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_xor_ps({src_data}, _mm256_castsi256_ps(_mm256_set1_epi32(0x80000000)));
+    assert m <= 8
+    assert stride(dst, 0) == 1
+    assert stride(src, 0) == 1
+    for i in seq(0, 8):
+        if i < m:
+            dst[i] = -src[i]
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+        if op.callee.root_reference.data != "vec_neg_f32x8_pfx":
+            return
+
+        assert len(op.arguments) == 3
+        # m: size
+        assert op.arguments[0].type == i32, op.arguments[0].type
+        # dst: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        # src: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+
+        rewriter.replace_matched_op(
+            (
+                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
+                zero_vec_op := arith.ConstantOp(
+                    DenseIntOrFPElementsAttr.create_dense_float(
+                        VectorType(f32, [8]), [0.0] * 8
+                    )
+                ),
+                indices_op := arith.ConstantOp(
+                    DenseIntOrFPElementsAttr.create_dense_int(
+                        VectorType(i32, [8]), [0, 1, 2, 3, 4, 5, 6, 7]
+                    ),
+                ),
+                broadcast_thresh_op := vector.BroadcastOp(
+                    operands=[op.arguments[0]],
+                    result_types=[VectorType(i32, [8])],
+                ),
+                mask_op := llvm.ICmpOp(
+                    indices_op.result,
+                    broadcast_thresh_op.vector,
+                    IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
+                ),
+                load_op := vector.LoadOp(
+                    operands=[
+                        op.arguments[2],
+                        [zero_op.result],
+                    ],
+                    result_types=[VectorType(f32, [8])],
+                ),
+                # same as above
+                neg_op := llvm.FSubOp(
+                    zero_vec_op.result,
+                    load_op.result,
+                ),
+                ptr_cast_op := UnrealizedConversionCastOp.get(
+                    [op.arguments[1]],
+                    llvm.LLVMPointerType.opaque(),
+                ),
+                llvm_intrinsics.MaskedStoreOp(
+                    neg_op.res,
+                    ptr_cast_op.results[0],
+                    mask_op.res,
+                ),
+            )
+        )
+
+
+class ConvertVecNegF64x4(RewritePattern):
+    """
+    def vec_neg_f64x4(dst: [f64][4] @ VEC_AVX2, src: [f64][4] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_xor_pd({src_data}, _mm256_castsi256_pd(_mm256_set1_epi64x(0x8000000000000000LL)));
+    assert stride(dst, 0) == 1
+    assert stride(src, 0) == 1
+    for i in seq(0, 4):
+        dst[i] = -src[i]
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+        if op.callee.root_reference.data != "vec_neg_f64x4":
+            return
+
+        assert len(op.arguments) == 2
+        # dst: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        # src: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+
+        rewriter.replace_matched_op(
+            (
+                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
+                zero_vec_op := arith.ConstantOp(
+                    DenseIntOrFPElementsAttr.create_dense_float(
+                        VectorType(f64, [4]), [0.0] * 4
+                    )
+                ),
+                load_op := vector.LoadOp(
+                    operands=[op.arguments[1], [zero_op.result]],
+                    result_types=[VectorType(f64, [4])],
+                ),
+                # same as above
+                neg_op := llvm.FSubOp(
+                    zero_vec_op.result,
+                    load_op.result,
+                ),
+                vector.StoreOp.get(
+                    neg_op.res,
+                    op.arguments[0],
+                    [zero_op.result],
+                ),
+            )
+        )
+
+
+class ConvertVecNegF64x4Pfx(RewritePattern):
+    """
+    def vec_neg_f64x4_pfx(m: size, dst: [f64][4] @ VEC_AVX2,
+                      src: [f64][4] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_xor_pd({src_data}, _mm256_castsi256_pd(_mm256_set1_epi64x(0x8000000000000000LL)));
+    assert m <= 4
+    assert stride(dst, 0) == 1
+    assert stride(src, 0) == 1
+    for i in seq(0, 4):
+        if i < m:
+            dst[i] = -src[i]
+
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+        if op.callee.root_reference.data != "vec_neg_f64x4_pfx":
+            return
+
+        assert len(op.arguments) == 3
+        # m: size
+        assert op.arguments[0].type == i32, op.arguments[0].type
+        # dst: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        # src: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+
+        rewriter.replace_matched_op(
+            (
+                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
+                zero_vec_op := arith.ConstantOp(
+                    DenseIntOrFPElementsAttr.create_dense_float(
+                        VectorType(f64, [4]), [0.0] * 4
+                    )
+                ),
+                indices_op := arith.ConstantOp(
+                    DenseIntOrFPElementsAttr.create_dense_int(
+                        VectorType(i32, [4]), [0, 1, 2, 3]
+                    ),
+                ),
+                broadcast_thresh_op := vector.BroadcastOp(
+                    operands=[op.arguments[0]],
+                    result_types=[VectorType(i32, [4])],
+                ),
+                mask_op := llvm.ICmpOp(
+                    indices_op.result,
+                    broadcast_thresh_op.vector,
+                    IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
+                ),
+                load_op := vector.LoadOp(
+                    operands=[
+                        op.arguments[2],
+                        [zero_op.result],
+                    ],
+                    result_types=[VectorType(f64, [4])],
+                ),
+                # same as above
+                neg_op := llvm.FSubOp(
+                    zero_vec_op.result,
+                    load_op.result,
+                ),
+                ptr_cast_op := UnrealizedConversionCastOp.get(
+                    [op.arguments[1]],
+                    llvm.LLVMPointerType.opaque(),
+                ),
+                llvm_intrinsics.MaskedStoreOp(
+                    neg_op.res,
+                    ptr_cast_op.results[0],
+                    mask_op.res,
+                ),
+            )
+        )
+
+
+class ConvertVecZeroF32x8Pfx(RewritePattern):
+    """
+    def vec_zero_f32x8_pfx(m: size, dst: [f32][8] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_setzero_ps();
+    assert m <= 8
+    assert stride(dst, 0) == 1
+    for i in seq(0, 8):
+        if i < m:
+            dst[i] = 0.0
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+        if op.callee.root_reference.data != "vec_zero_f32x8_pfx":
+            return
+
+        assert len(op.arguments) == 2
+        # m: size
+        assert op.arguments[0].type == i32, op.arguments[0].type
+        # dst: [f32][8] @ VEC_AVX2
+        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+
+        rewriter.replace_matched_op(
+            (
+                zero_vec_op := arith.ConstantOp(
+                    DenseIntOrFPElementsAttr.create_dense_float(
+                        VectorType(f32, [8]), [0.0] * 8
+                    )
+                ),
+                indices_op := arith.ConstantOp(
+                    DenseIntOrFPElementsAttr.create_dense_int(
+                        VectorType(i32, [8]), [0, 1, 2, 3, 4, 5, 6, 7]
+                    ),
+                ),
+                broadcast_thresh_op := vector.BroadcastOp(
+                    operands=[op.arguments[0]],
+                    result_types=[VectorType(i32, [8])],
+                ),
+                mask_op := llvm.ICmpOp(
+                    indices_op.result,
+                    broadcast_thresh_op.vector,
+                    IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
+                ),
+                ptr_cast_op := UnrealizedConversionCastOp.get(
+                    [op.arguments[1]],
+                    llvm.LLVMPointerType.opaque(),
+                ),
+                llvm_intrinsics.MaskedStoreOp(
+                    zero_vec_op.result,
+                    ptr_cast_op.results[0],
+                    mask_op.res,
+                ),
+            )
+        )
+
+
+class ConvertVecZeroF64x4Pfx(RewritePattern):
+    """
+    def vec_zero_f32x8_pfx(m: size, dst: [f32][8] @ VEC_AVX2):
+    # @instr {dst_data} = _mm256_setzero_ps();
+    assert m <= 8
+    assert stride(dst, 0) == 1
+    for i in seq(0, 8):
+        if i < m:
+            dst[i] = 0.0
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: exo.InstrOp, rewriter: PatternRewriter):
+        if op.callee.root_reference.data != "vec_zero_f64x4_pfx":
+            return
+
+        assert len(op.arguments) == 2
+        # m: size
+        assert op.arguments[0].type == i32, op.arguments[0].type
+        # dst: [f64][4] @ VEC_AVX2
+        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+
+        rewriter.replace_matched_op(
+            (
+                zero_vec_op := arith.ConstantOp(
+                    DenseIntOrFPElementsAttr.create_dense_float(
+                        VectorType(f64, [4]), [0.0] * 4
+                    )
+                ),
+                indices_op := arith.ConstantOp(
+                    DenseIntOrFPElementsAttr.create_dense_int(
+                        VectorType(i32, [4]), [0, 1, 2, 3]
+                    ),
+                ),
+                broadcast_thresh_op := vector.BroadcastOp(
+                    operands=[op.arguments[0]],
+                    result_types=[VectorType(i32, [4])],
+                ),
+                mask_op := llvm.ICmpOp(
+                    indices_op.result,
+                    broadcast_thresh_op.vector,
+                    IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
+                ),
+                ptr_cast_op := UnrealizedConversionCastOp.get(
+                    [op.arguments[1]],
+                    llvm.LLVMPointerType.opaque(),
+                ),
+                llvm_intrinsics.MaskedStoreOp(
+                    zero_vec_op.result,
+                    ptr_cast_op.results[0],
+                    mask_op.res,
+                ),
+            )
+        )
+
+
 class InlineBLASPass(ModulePass):
-    name = "inline-avx2"
+    name = "inline-blas"
 
     def apply(self, ctx: Context, m: ModuleOp) -> None:
         PatternRewriteWalker(
@@ -1996,6 +3201,24 @@ class InlineBLASPass(ModulePass):
                     ConvertVecStoreF32x8Pfx(),
                     ConvertVecStoreF64x4(),
                     ConvertVecStoreF64x4Pfx(),
+                    ConvertVecFmaddRedF32x8(),
+                    ConvertVecFmaddRedF32x8Pfx(),
+                    ConvertVecFmaddRedF64x4(),
+                    ConvertVecFmaddRedF64x4Pfx(),
+                    ConvertVecFmadd1F32x8(),
+                    ConvertVecFmadd1F32x8Pfx(),
+                    ConvertVecFmadd1F64x4(),
+                    ConvertVecFmadd1F64x4Pfx(),
+                    ConvertVecMulF32x8(),
+                    ConvertVecMulF32x8Pfx(),
+                    ConvertVecMulF64x4(),
+                    ConvertVecMulF64x4Pfx(),
+                    ConvertVecNegF32x8(),
+                    ConvertVecNegF32x8Pfx(),
+                    ConvertVecNegF64x4(),
+                    ConvertVecNegF64x4Pfx(),
+                    ConvertVecZeroF32x8Pfx(),
+                    ConvertVecZeroF64x4Pfx(),
                 ]
             )
         ).rewrite_module(m)
