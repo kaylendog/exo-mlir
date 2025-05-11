@@ -559,8 +559,12 @@ class IRGenerator:
         return binop.result
 
     def generate_binop_expr_cmp(self, binop):
-        lhs = self.cast_to(self.generate_expr(binop.lhs), i1)
-        rhs = self.cast_to(self.generate_expr(binop.rhs), i1)
+        lhs = self.generate_expr(binop.lhs)
+        rhs = self.generate_expr(binop.rhs)
+
+        assert lhs.type == rhs.type, (
+            f"Cannot compare {lhs.type} and {rhs.type} with operator '{binop.op}'"
+        )
 
         # boolean operations
         if lhs.type == i1:

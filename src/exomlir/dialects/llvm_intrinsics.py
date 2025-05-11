@@ -1,5 +1,6 @@
 from typing import ClassVar
 
+from xdsl.dialects import arith
 from xdsl.dialects.builtin import (
     I1,
     IntegerAttr,
@@ -30,10 +31,15 @@ class FAbsOp(IRDLOperation):
 
     input = operand_def(T)
     result = result_def(T)
+    fastmath = prop_def(
+        arith.FastMathFlagsAttr, default=arith.FastMathFlagsAttr("fast")
+    )
 
     assembly_format = (
         "`(` operands `)` attr-dict `:` functional-type(operands, results)"
     )
+
+    irdl_options = [ParsePropInAttrDict()]
 
     def __init__(self, input: Operation | SSAValue, result_type: Attribute):
         super().__init__(
@@ -49,7 +55,6 @@ class MaskedStoreOp(IRDLOperation):
     value = operand_def(LLVMCompatibleFloatConstraint)
     data = operand_def(LLVMPointerType)
     mask = operand_def(I1 | VectorType[I1])
-
     alignment = prop_def(IntegerAttr[i32])
 
     assembly_format = "$value `,` $data `,` $mask attr-dict `:` type($value) `,` type($mask) `into` type($data)"
@@ -72,8 +77,38 @@ class MaskedStoreOp(IRDLOperation):
         )
 
 
+class FMAOp(IRDLOperation):
+    name = "llvm.intr.fma"
+
+    a = operand_def(LLVMCompatibleFloatConstraint)
+    b = operand_def(LLVMCompatibleFloatConstraint)
+    c = operand_def(LLVMCompatibleFloatConstraint)
+    result = result_def(LLVMCompatibleFloatConstraint)
+    fastmath = prop_def(
+        arith.FastMathFlagsAttr, default=arith.FastMathFlagsAttr("fast")
+    )
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = [ParsePropInAttrDict()]
+
+    def __init__(
+        self,
+        a: Operation | SSAValue,
+        b: Operation | SSAValue,
+        c: Operation | SSAValue,
+        result_type: Attribute,
+    ):
+        super().__init__(
+            operands=[a, b, c],
+            result_types=[result_type],
+        )
+
+
 LLVMIntrinsics = Dialect(
     "llvm.intr",
-    [FAbsOp, MaskedStoreOp],
+    [FAbsOp, MaskedStoreOp, FMAOp],
     [],
 )
