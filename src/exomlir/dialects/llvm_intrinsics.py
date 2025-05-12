@@ -31,9 +31,6 @@ class FAbsOp(IRDLOperation):
 
     input = operand_def(T)
     result = result_def(T)
-    fastmath = prop_def(
-        arith.FastMathFlagsAttr, default=arith.FastMathFlagsAttr("fast")
-    )
 
     assembly_format = (
         "`(` operands `)` attr-dict `:` functional-type(operands, results)"
@@ -42,13 +39,7 @@ class FAbsOp(IRDLOperation):
     irdl_options = [ParsePropInAttrDict()]
 
     def __init__(self, input: Operation | SSAValue, result_type: Attribute):
-        super().__init__(
-            operands=[input],
-            result_types=[result_type],
-            properties={
-                "fastmath": arith.FastMathFlagsAttr("fast"),
-            },
-        )
+        super().__init__(operands=[input], result_types=[result_type])
 
 
 @irdl_op_definition

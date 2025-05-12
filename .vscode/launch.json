@@ -12,6 +12,18 @@
 				"PYTHONPATH": "${workspaceFolder}"
 			},
 			"justMyCode": false
+		},
+		{
+			"name": "Compile current file with exo-mlir (llvm)",
+			"type": "debugpy",
+			"request": "launch",
+			"program": "${workspaceFolder}/src/exomlir/main.py",
+			"console": "integratedTerminal",
+			"args": ["${file}", "-o", "-", "--lower-to-llvm"],
+			"env": {
+				"PYTHONPATH": "${workspaceFolder}"
+			},
+			"justMyCode": false
 		}
 	]
 }

@@ -1,0 +1,54 @@
+{
+    "dscal_stride_1": {
+        "flops": {
+            "algorithm": "n",
+            "scheduled": "4*(Mod(floor(n/4 + 3/4) + 1, 2) + 4*floor(floor(n/4 + 3/4)/4 - 1/4) + 2*floor((Mod(floor(n/4 + 3/4) + 3, 4))/2))"
+        },
+        "flops_upper_bound": {
+            "algorithm": "n",
+            "scheduled": "n + 15"
+        },
+        "load_mem_traffic": {
+            "algorithm": "8*(2*n)",
+            "scheduled": "8*(4*(Mod(floor(n/4 + 3/4) + 1, 2)) + 16*floor(floor(n/4 + 3/4)/4 - 1/4) + 8*floor((Mod(floor(n/4 + 3/4) + 3, 4))/2) + 1)"
+        },
+        "load_mem_traffic_upper_bound": {
+            "algorithm": "8*(2*n)",
+            "scheduled": "8*(n + 16)"
+        },
+        "store_mem_traffic": {
+            "algorithm": "8*n",
+            "scheduled": "8*(4*(Mod(floor(n/4 + 3/4) + 1, 2)) + 16*floor(floor(n/4 + 3/4)/4 - 1/4) + 8*floor((Mod(floor(n/4 + 3/4) + 3, 4))/2) + 1)"
+        },
+        "store_mem_traffic_upper_bound": {
+            "algorithm": "8*n",
+            "scheduled": "8*(n + 16)"
+        }
+    },
+    "sscal_stride_1": {
+        "flops": {
+            "algorithm": "n",
+            "scheduled": "n"
+        },
+        "flops_upper_bound": {
+            "algorithm": "n",
+            "scheduled": "n"
+        },
+        "load_mem_traffic": {
+            "algorithm": "4*(2*n)",
+            "scheduled": "4*(2*n + 1)"
+        },
+        "load_mem_traffic_upper_bound": {
+            "algorithm": "4*(2*n)",
+            "scheduled": "4*(2*n + 1)"
+        },
+        "store_mem_traffic": {
+            "algorithm": "4*n",
+            "scheduled": "4*(n + 1)"
+        },
+        "store_mem_traffic_upper_bound": {
+            "algorithm": "4*n",
+            "scheduled": "4*(n + 1)"
+        }
+    }
+}

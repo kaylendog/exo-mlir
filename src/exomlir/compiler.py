@@ -33,6 +33,7 @@ from exomlir.dialects.llvm_intrinsics import LLVMIntrinsics
 from exomlir.generator import IRGenerator
 from exomlir.platforms.avx2 import InlineAVX2Pass
 from exomlir.platforms.blas import InlineBLASPass
+from exomlir.rewrites.add_prefix import AddPrefixPass
 from exomlir.rewrites.convert_scalar_ref import ConvertScalarRefPass
 from exomlir.rewrites.convert_tensor_ref import ConvertTensorRefPass
 from exomlir.rewrites.inline_memory_space import InlineMemorySpacePass
@@ -40,6 +41,16 @@ from exomlir.rewrites.lower_alloc import LowerAllocPass
 from exomlir.rewrites.reconcile_index_casts import ReconcileIndexCastsPass
 
 logger = logging.getLogger("exo-mlir")
+
+
+class CompilerOptions:
+    """
+    Compiler options for exo-mlir.
+    """
+
+    def __init__(self):
+        self.target = "llvm"
+        self.prefix = None
 
 
 def context() -> Context:
@@ -68,17 +79,18 @@ def analyze(p):
     return MemoryAnalysis().run(p)
 
 
-def compile_one(proc: Procedure, lower_to_llvm=False) -> ModuleOp:
+def compile_one(proc: Procedure, opts: CompilerOptions = CompilerOptions()) -> ModuleOp:
     """
     Compile a single procedure. This is an alias for `compile_many([proc])`.
     """
     if proc.is_instr():
         raise TypeError("Cannot compile an instr procedure.")
-    return compile_many([proc], lower_to_llvm=lower_to_llvm)
+    return compile_many([proc], opts)
 
 
 def compile_many(
-    library: Sequence[Procedure], print_exo=False, cache_exo=False, lower_to_llvm=False
+    library: Sequence[Procedure],
+    opts: CompilerOptions = CompilerOptions(),
 ) -> ModuleOp:
     """
     Compile a list of procedures into a single MLIR module..
@@ -102,31 +114,14 @@ def compile_many(
     # analyze procedures
     analyzed_procedures = [analyze(proc) for proc in input_procedures]
 
-    # if print_exo is set, print the analyzed procedures
-    if print_exo:
-        for proc in analyzed_procedures:
-            print(proc)
-
-    if cache_exo:
-        with open("exo_cache.txt", "w") as f:
-            for proc in analyzed_procedures:
-                f.write(str(proc) + "\n")
-                f.write("\n")
-
     # generate MLIR
-    return transform(
-        context(),
-        IRGenerator().generate(analyzed_procedures),
-        lower_to_llvm=lower_to_llvm,
-    )
+    return transform(context(), IRGenerator().generate(analyzed_procedures), opts)
 
 
 def compile_path(
     src: Path,
     dest: Path | None = None,
-    print_exo: bool = False,
-    cache_exo: bool = False,
-    lower_to_llvm: bool = False,
+    opts: CompilerOptions = CompilerOptions(),
 ):
     """
     Compile all procedures in a Python source file to a single MLIR module, and write it to a file.
@@ -152,9 +147,7 @@ def compile_path(
     assert isinstance(library, list)
     assert all(isinstance(proc, Procedure) for proc in library)
 
-    module = compile_many(
-        library, print_exo=print_exo, cache_exo=cache_exo, lower_to_llvm=lower_to_llvm
-    )
+    module = compile_many(library, opts)
 
     # print to stdout if no dest
     if not dest:
@@ -166,10 +159,19 @@ def compile_path(
     dest.write_text(str(module))
 
 
-def transform(ctx: Context, module: ModuleOp, lower_to_llvm=False) -> ModuleOp:
+def transform(
+    ctx: Context, module: ModuleOp, opts: CompilerOptions = CompilerOptions()
+) -> ModuleOp:
     """
     Apply transformations to an MLIR module.
     """
+
+    if opts.target == "exo":
+        return module
+
+    if opts.prefix is not None:
+        AddPrefixPass(opts.prefix).apply(ctx, module)
+        module.verify()
 
     InlineMemorySpacePass().apply(ctx, module)
     module.verify()
@@ -187,7 +189,7 @@ def transform(ctx: Context, module: ModuleOp, lower_to_llvm=False) -> ModuleOp:
     CommonSubexpressionElimination().apply(ctx, module)
 
     # bail out if we are not lowering to LLVM
-    if not lower_to_llvm:
+    if opts.target == "builtin":
         return module
 
     LowerAllocPass().apply(ctx, module)

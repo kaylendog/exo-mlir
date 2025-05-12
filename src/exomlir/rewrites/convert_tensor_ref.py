@@ -1,6 +1,14 @@
 from xdsl.context import Context
 from xdsl.dialects import arith, memref
 from xdsl.dialects.builtin import (
+    i16,
+    i32,
+    i64,
+    f16,
+    f32,
+    f64,
+    f80,
+    f128,
     IndexType,
     IntegerAttr,
     MemRefType,
@@ -82,16 +90,29 @@ class ConvertReduceOp(RewritePattern):
             )
             value = load_op.res
 
+        load_op = memref.LoadOp.get(op.input, op.indices)
+
+        # switch on value type
+        if value.type in [f16, f32, f64, f80, f128]:
+            add_op = arith.AddfOp(
+                operand1=load_op.results[0],
+                operand2=value,
+                flags=arith.FastMathFlagsAttr("none"),
+                result_type=op.input.type.element_type,
+            )
+
+        else:
+            add_op = arith.AddiOp(
+                operand1=load_op.results[0],
+                operand2=value,
+                result_type=op.input.type.element_type,
+            )
+
         rewriter.replace_matched_op(
             (
                 *ops,
-                load_op := memref.LoadOp.get(op.input, op.indices),
-                add_op := arith.AddfOp(
-                    operand1=load_op.results[0],
-                    operand2=value,
-                    flags=arith.FastMathFlagsAttr("none"),
-                    result_type=op.input.type.element_type,
-                ),
+                load_op,
+                add_op,
                 memref.StoreOp.get(add_op.result, op.input, op.indices),
             ),
         )

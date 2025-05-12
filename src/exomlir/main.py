@@ -5,6 +5,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 from exomlir import compile_path
+from exomlir.compiler import CompilerOptions
 
 logging.basicConfig(format="%(levelname)s: %(message)s", stream=sys.stderr)
 
@@ -24,18 +25,13 @@ def main():
     )
     parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
     parser.add_argument(
-        "--print-exo",
-        action="store_true",
+        "--target",
+        default="llvm",
+        choices=["llvm", "exo", "builtin"],
     )
     parser.add_argument(
-        "--cache-exo",
-        action="store_true",
-        help="Cache the exo analysis results to a file. This is useful for debugging.",
-    )
-    parser.add_argument(
-        "--lower-to-llvm",
-        action="store_true",
-        help="Lower the generated MLIR to LLVM-compatible IR.",
+        "--prefix",
+        help="Prefix to prepend to all procedure names.",
     )
 
     args = parser.parse_args()
@@ -64,16 +60,15 @@ def main():
     if not args.output or not os.path.isdir(args.output) and args.output != "-":
         parser.error("Must provide a directory output for multiple source files.")
 
+    # construct opts
+    opts = CompilerOptions()
+    opts.target = args.target
+    opts.prefix = args.prefix
+
     # multiple source files
     dests = [Path(args.output) / src.with_suffix(".mlir").name for src in srcs]
     for src, dest in zip(srcs, dests):
-        compile_path(
-            src,
-            dest if args.output != "-" else None,
-            print_exo=args.print_exo,
-            cache_exo=args.cache_exo,
-            lower_to_llvm=args.lower_to_llvm,
-        )
+        compile_path(src, dest if args.output != "-" else None, opts)
 
 
 if __name__ == "__main__":

@@ -3,189 +3,173 @@ import subprocess
 
 configfile: "config.yaml"
 
-def supports_variant(variant):
-    if platform.system() == "Darwin":
-        return any(line.endswith(": 1") for line in subprocess.run(["sysctl", "-a"], stdout=subprocess.PIPE).stdout.decode().splitlines() if variant in line) or variant == "base"
-    else:
-        return subprocess.run(["grep", variant, "/proc/cpuinfo"], stdout=subprocess.PIPE).returncode == 0 or variant == "base"
-
-KERNELS = [
-    "matmul"
-]
-
-EXO_VARIANTS = [
-    "base", # baseline naive implementations
-    "avx2", # x86 AVX2
-    "neon" # ARM neon
-]
-
-SUPPORTED_EXO_VARIANTS = [
-    variant for variant in EXO_VARIANTS if supports_variant(variant)
-]
-
-print("Supported variants: ", SUPPORTED_EXO_VARIANTS)
-
-rule cc_assemble:
+rule exocc_compile_exocc:
     input:
-        "build/benchmarks/{compiler}/{kernel}/{variant}.S"
+        "benchmarks/{level}/{proc}.py",
     output:
-        "build/benchmarks/{compiler}/{kernel}/{variant}.o"
-    # exclude main
-    wildcard_constraints:
-        variant="|".join(EXO_VARIANTS)
+        "build/exocc/{level}/{proc}.c",
+        "build/exocc/{level}/{proc}.h",
+    shell:
+        """
+        exocc -o build/exocc/{wildcards.level} benchmarks/{wildcards.level}/{wildcards.proc}.py
+        """
+
+rule exocc_compile_clang_llvm:
+    input:
+        "build/exocc/{level}/{proc}.c",
+        "build/exocc/{level}/{proc}.h",
+    output:
+        "build/exocc/{level}/{proc}.ll",
+    shell:
+        """
+        clang -O0 -Xclang -disable-O0-optnone -mavx -mfma -mavx2 -S -emit-llvm build/exocc/{wildcards.level}/{wildcards.proc}.c -o build/exocc/{wildcards.level}/{wildcards.proc}.ll
+        """
+
+
+rule exomlir_compile_exomlir:
+    input:
+        "benchmarks/{level}/{proc}.py",
+    output:
+        "build/exomlir/{level}/{proc}.mlir",
+    shell:
+        """
+        uv run exo-mlir -o build/exomlir/{wildcards.level}/ benchmarks/{wildcards.level}/{wildcards.proc}.py --target llvm --prefix exomlir
+        """
+
+rule exomlir_compile_mliropt:
+    input:
+        "build/exomlir/{level}/{proc}.mlir",
+    output:
+        "build/exomlir/{level}/{proc}.lowered.mlir",
+    shell:
+        """
+        mlir-opt -convert-vector-to-llvm --convert-to-llvm -cse -canonicalize build/exomlir/{wildcards.level}/{wildcards.proc}.mlir > build/exomlir/{wildcards.level}/{wildcards.proc}.lowered.mlir
+        """
+
+rule exomlir_compile_mlirtranslate:
+    input:
+        "build/exomlir/{level}/{proc}.lowered.mlir",
+    output:
+        "build/exomlir/{level}/{proc}.ll",
+    shell:
+        """
+        mlir-translate -mlir-to-llvmir build/exomlir/{wildcards.level}/{wildcards.proc}.lowered.mlir > build/exomlir/{wildcards.level}/{wildcards.proc}.ll
+        """
+
+rule llvm_optimise:
+    input:
+        "build/{compiler}/{level}/{proc}.ll",
+    output:
+        "build/{compiler}/{level}/{proc}.bc",
+    shell:
+        """
+        opt -march=x86-64 -mcpu=btver2 -O3 -o build/{wildcards.compiler}/{wildcards.level}/{wildcards.proc}.bc build/{wildcards.compiler}/{wildcards.level}/{wildcards.proc}.ll
+        """
+
+rule llc_compile:
+    input:
+        "build/{compiler}/{level}/{proc}.bc",
+    output:
+        "build/{compiler}/{level}/{proc}.o",
+    shell:
+        """
+        llc -O3 -march=x86-64 -mcpu=btver2 -filetype=obj -o build/{wildcards.compiler}/{wildcards.level}/{wildcards.proc}.o build/{wildcards.compiler}/{wildcards.level}/{wildcards.proc}.bc
+        """
+
+rule benchmark_count_instrs:
+    input:
+        expand(
+            "build/{compiler}/{level}/{proc}.bc",
+            compiler=["exocc", "exomlir"],
+            level=config["levels"],
+            proc=config["procs"]
+        )
+    output:
+        "build/instrcount.csv"
     params:
-        cc=config["cc"],
-        asflags=config["asflags"]
+        opt=config["opt"]
     shell:
-        "{params.cc} {params.asflags} -c -o {output} {input}"
+        """
+        python3 tools/count-instructions.py {params.opt} ./build > build/instrcount.csv
+        """
 
-rule benchmark_compile:
+rule benchmark_plot_instr_counts:
     input:
-        "benchmarks/benchmark.c",
+        "build/instrcount.csv"
     output:
-        "build/benchmarks/benchmark.o"
-    params:
-        cc=config["cc"],
-        cflags=config["cflags"]
+        "build/plots/instrcount_level0.png",
+        "build/plots/instrcount_level1.png",
     shell:
-        "{params.cc} -Ibenchmarks {params.cflags} -c -o {output} {input}"
+        """
+        python3 tools/plot-instruction-counts.py
+        """
 
-rule exocc_compile:
+rule benchmark_compile_harnesses:
     input:
-        "benchmarks/{kernel}/{variant}.py"
+        "build/exocc/{level}/{proc}.o",
+        "build/exomlir/{level}/{proc}.o",
+        "benchmarks/{level}/{proc}.harness.cpp",
     output:
-        "build/benchmarks/exocc/{kernel}/{variant}.c",
-        "build/benchmarks/exocc/{kernel}/{variant}.h"
-     # exclude main
-    wildcard_constraints:
-        variant="|".join(EXO_VARIANTS)
+        "build/harnesses/{level}/{proc}.x",
     shell:
-        "exocc -o build/benchmarks/exocc/{wildcards.kernel} --stem {wildcards.variant} {input}"
+        """
+        clang++ -O3 -mavx -mfma -mavx2 -fuse-ld=lld \
+            -Ibuild \
+            -Ivendor/benchmark/include \
+            -Lvendor/benchmark/build/src \
+            -lbenchmark -lpthread -lm -lstdc++ \
+            -o build/harnesses/{wildcards.level}/{wildcards.proc}.x \
+            build/exocc/{wildcards.level}/{wildcards.proc}.o \
+            build/exomlir/{wildcards.level}/{wildcards.proc}.o \
+            benchmarks/{wildcards.level}/{wildcards.proc}.harness.cpp
+        """
 
-rule exocc_cc_compile:
+rule benchmark_run_harnesses:
     input:
-        c="build/benchmarks/exocc/{kernel}/{variant}.c",
-        h="build/benchmarks/exocc/{kernel}/{variant}.h"
+        "build/harnesses/{level}/{proc}.x",
     output:
-        "build/benchmarks/exocc/{kernel}/{variant}.S"
-     # exclude main
-    wildcard_constraints:
-        variant="|".join(EXO_VARIANTS)
-    params:
-        cc=config["cc"],
-        include=lambda wildcards: "build/benchmarks/exocc/{wildcards.kernel}",
-        cflags=config["cflags"],
-        vflags=lambda wildcards: config["vflags"][wildcards.variant]
+        "build/results/{level}/{proc}.csv",
     shell:
-        "{params.cc} -I{params.include} {params.cflags} {params.vflags} -S -o {output} {input.c}"
+        """
+        ./build/harnesses/{wildcards.level}/{wildcards.proc}.x --benchmark_format=csv --benchmark_report_aggregates_only=true > build/results/{wildcards.level}/{wildcards.proc}.csv
+        """
 
-
-rule exocc_cc_compile_main:
+rule benchmark_compile_correctness:
     input:
-        "benchmarks/{kernel}/exocc.c",
-        "build/benchmarks/benchmark.o",
-        "build/benchmarks/exocc/{kernel}/{variant}.o"
+        "build/exocc/{level}/{proc}.o",
+        "build/exomlir/{level}/{proc}.o",
+        "benchmarks/{level}/{proc}.correctness.cpp",
     output:
-        "build/benchmarks/exocc/{kernel}/{variant}.x"
-    # exclude main
-    wildcard_constraints:
-        variant="|".join(EXO_VARIANTS)
-    params:
-        cc=config["cc"],
-        cflags=config["cflags"],
-        ldflags=config["ldflags"]
+        "build/correctness/{level}/{proc}.x",
     shell:
-        "{params.cc} -Ibenchmarks -I$(dirname {output}) {params.cflags} -o {output} {input} {params.ldflags} -D__TARGET_{wildcards.variant}"
+        """
+        clang++ -O3 -mavx -mfma -mavx2 -fuse-ld=lld \
+            -Ibuild \
+            -o build/correctness/{wildcards.level}/{wildcards.proc}.x \
+            build/exocc/{wildcards.level}/{wildcards.proc}.o \
+            build/exomlir/{wildcards.level}/{wildcards.proc}.o \
+            benchmarks/{wildcards.level}/{wildcards.proc}.correctness.cpp
+        """
 
-rule exocc_benchmark:
+rule benchmark_run_correctness:
     input:
-        "build/benchmarks/exocc/{kernel}/{variant}.x"
+        "build/correctness/{level}/{proc}.x",
     output:
-        "build/benchmarks/exocc/{kernel}/{variant}.csv"
+        "build/correctness/{level}/{proc}.out",
     shell:
-        "{input} > {output}"
-
-rule exomlir_compile:
-    input:
-        "benchmarks/{kernel}/{variant}.py"
-    output:
-        "build/benchmarks/exomlir/{kernel}/{variant}.mlir",
-     # exclude main
-    wildcard_constraints:
-        variant="|".join(EXO_VARIANTS)
-    shell:
-        "exo-mlir -o build/benchmarks/exomlir/{wildcards.kernel} {input}"
-
-rule exomlir_lower_mlir:
-    input:
-        "build/benchmarks/exomlir/{kernel}/{variant}.mlir"
-    output:
-        "build/benchmarks/exomlir/{kernel}/{variant}.mlir.lowered"
-     # exclude main
-    wildcard_constraints:
-        variant="|".join(EXO_VARIANTS)
-    shell:
-        "mlir-opt {input} -convert-scf-to-cf -canonicalize -cse | xdsl-opt -p convert-memref-to-ptr{{lower_func=true}},convert-ptr-to-llvm | mlir-opt -convert-func-to-llvm -convert-arith-to-llvm -convert-index-to-llvm > {output}"
-
-rule exomlir_lower_llvmir:
-    input:
-        "build/benchmarks/exomlir/{kernel}/{variant}.mlir.lowered",
-    output:
-        "build/benchmarks/exomlir/{kernel}/{variant}.ll",
-     # exclude main
-    wildcard_constraints:
-        variant="|".join(EXO_VARIANTS)
-    shell:
-        "mlir-translate {input} -mlir-to-llvmir > {output}"
-
-rule exomlir_assemble:
-    input:
-        "build/benchmarks/exomlir/{kernel}/{variant}.ll"
-    output:
-        "build/benchmarks/exomlir/{kernel}/{variant}.o"
-    # exclude main
-    wildcard_constraints:
-        variant="|".join(EXO_VARIANTS)
-    params:
-        cc=config["cc"],
-        asflags=config["asflags"]
-    shell:
-        "{params.cc} {params.asflags} -c -o {output} {input}"
-
-rule exomlir_cc_compile_main:
-    input:
-        "benchmarks/{kernel}/exomlir.c",
-        "build/benchmarks/benchmark.o",
-        "build/benchmarks/exomlir/{kernel}/{variant}.o"
-    output:
-        "build/benchmarks/exomlir/{kernel}/{variant}.x"
-    # exclude main
-    wildcard_constraints:
-        variant="|".join(EXO_VARIANTS)
-    params:
-        cc=config["cc"],
-        cflags=config["cflags"],
-        ldflags=config["ldflags"]
-    shell:
-        "{params.cc} -Ibenchmarks -I$(dirname {output}) {params.cflags} -o {output} {input} {params.ldflags} -D__TARGET_{wildcards.variant}"
-
-rule exomlir_benchmark:
-    input:
-        "build/benchmarks/exomlir/{kernel}/{variant}.x"
-    output:
-        "build/benchmarks/exomlir/{kernel}/{variant}.csv"
-    shell:
-        "{input} > {output}"
-
-rule exocc:
-    input:
-        expand("build/benchmarks/exocc/{kernel}/{variant}.csv", kernel=KERNELS, variant=SUPPORTED_EXO_VARIANTS)
-
-rule exomlir:
-    input:
-        expand("build/benchmarks/exomlir/{kernel}/{variant}.csv", kernel=KERNELS, variant=SUPPORTED_EXO_VARIANTS)
+        """
+        ./build/correctness/{wildcards.level}/{wildcards.proc}.x > build/correctness/{wildcards.level}/{wildcards.proc}.out
+        """
 
 rule all:
     input:
-        expand("build/benchmarks/exocc/{kernel}/{variant}.csv", kernel=KERNELS, variant=SUPPORTED_EXO_VARIANTS),
-        expand("build/benchmarks/exomlir/{kernel}/{variant}.csv", kernel=KERNELS, variant=SUPPORTED_EXO_VARIANTS)
+        "build/plots/instrcount_level0.png",
+        "build/plots/instrcount_level1.png",
+        expand(
+            "build/results/level0/{proc}.csv",
+            proc=config["procs"]
+        ),
+        expand(
+            "build/correctness/level0/{proc}.out",
+            proc=config["procs"]
+        ),
