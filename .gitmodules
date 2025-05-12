@@ -5,3 +5,6 @@ url = https://github.com/google/benchmark
 [submodule "vendor/llvm-project"]
 path = vendor/llvm-project
 url = https://github.com/llvm/llvm-project
+[submodule "vendor/ExoBLAS"]
+	path = vendor/ExoBLAS
+	url = https://github.com/exo-lang/ExoBLAS.git
