@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from exo import *
 
+from exoblas.codegen_helpers import *
+from exoblas.blaslib import *
+
 
 @proc
 def rot(n: size, x: [R][n], y: [R][n], c: R, s: R):
@@ -10,3 +13,8 @@ def rot(n: size, x: [R][n], y: [R][n], c: R, s: R):
         xReg = x[i]
         x[i] = c * xReg + s * y[i]
         y[i] = -s * xReg + c * y[i]
+
+
+variants_generator(optimize_level_1, targets=("avx2"), opt_precisions=("f64"))(
+    rot, "i", 4, globals=globals()
+)

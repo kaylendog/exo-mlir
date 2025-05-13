@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from exo import *
 
+from exoblas.codegen_helpers import *
+from exoblas.blaslib import *
+
 
 @proc
 def swap(n: size, x: [R][n], y: [R][n]):
@@ -10,3 +13,8 @@ def swap(n: size, x: [R][n], y: [R][n]):
         tmp = x[i]
         x[i] = y[i]
         y[i] = tmp
+
+
+variants_generator(optimize_level_1, targets=("avx2"), opt_precisions=("f64"))(
+    swap, "i", 4, globals=globals()
+)

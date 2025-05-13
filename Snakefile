@@ -97,8 +97,7 @@ rule benchmark_plot_instr_counts:
     input:
         "build/instrcount.csv"
     output:
-        "build/plots/instrcount_level0.png",
-        "build/plots/instrcount_level1.png",
+        "build/plots/level1/instcount.png",
     shell:
         """
         python3 tools/plot-instruction-counts.py
@@ -131,7 +130,11 @@ rule benchmark_run_harnesses:
         "build/results/{level}/{proc}.csv",
     shell:
         """
-        ./build/harnesses/{wildcards.level}/{wildcards.proc}.x --benchmark_format=csv --benchmark_report_aggregates_only=true > build/results/{wildcards.level}/{wildcards.proc}.csv
+        ./build/harnesses/{wildcards.level}/{wildcards.proc}.x \
+            --benchmark_format=csv \
+            --benchmark_report_aggregates_only=false \
+            --benchmark_repetitions=16 \
+            > build/results/{wildcards.level}/{wildcards.proc}.csv
         """
 
 rule benchmark_compile_correctness:
@@ -161,15 +164,34 @@ rule benchmark_run_correctness:
         ./build/correctness/{wildcards.level}/{wildcards.proc}.x > build/correctness/{wildcards.level}/{wildcards.proc}.out
         """
 
+rule benchmark_process_results:
+    input:
+        "build/results/{level}/{proc}.csv",
+    output:
+        "build/results/{level}/{proc}.processed.csv",
+    shell:
+        """
+        python3 tools/process-results.py {input}
+        """
+
+rule benchmark_plot_results:
+    input:
+        "build/results/{level}/{proc}.processed.csv",
+    output:
+        "build/plots/{level}/{proc}.png",
+    shell:
+        """
+        python3 tools/plot-benchmark-results.py {input} {wildcards.level} {wildcards.proc}
+        """
+
 rule all:
     input:
-        "build/plots/instrcount_level0.png",
-        "build/plots/instrcount_level1.png",
+        "build/plots/level1/instcount.png",
         expand(
-            "build/results/level0/{proc}.csv",
+            "build/correctness/level1/{proc}.out",
             proc=config["procs"]
         ),
         expand(
-            "build/correctness/level0/{proc}.out",
+            "build/plots/level1/{proc}.png",
             proc=config["procs"]
         ),

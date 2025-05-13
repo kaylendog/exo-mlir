@@ -34,6 +34,6 @@ for level in sorted(df["level"].unique()):
     plt.legend(title="Compiler")
     plt.tight_layout()
 
-    output_path = f"{pwd}/build/plots/instrcount_{level}.png"
+    output_path = f"{pwd}/build/plots/{level}/instcount.png"
     plt.savefig(output_path, dpi=300)
     plt.close()
