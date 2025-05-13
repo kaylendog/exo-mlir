@@ -20,6 +20,8 @@ class CastsOp(IRDLOperation):
     input = operand_def(AnySignlessIntegerOrIndexType)
     result = result_def(AnySignlessIntegerOrIndexType)
 
+    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
+
     def __init__(self, input: SSAValue | Operation, result_type: Attribute) -> None:
         super().__init__(
             operands=[input],

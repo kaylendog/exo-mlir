@@ -35,5 +35,8 @@ for level in sorted(df["level"].unique()):
     plt.tight_layout()
 
     output_path = f"{pwd}/build/plots/{level}/instcount.png"
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
     plt.savefig(output_path, dpi=300)
+
     plt.close()

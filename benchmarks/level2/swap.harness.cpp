@@ -3,11 +3,11 @@
 #include <random>
 #include <vector>
 
-#include <exocc/level1/swap.h>
+#include <exocc/level2/swap.h>
 
-extern "C" void exomlir_swap(int32_t n, const float *x, const float *y);
+extern "C" void exomlir_exo_sswap_stride_1(int32_t n, const float *x, const float *y);
 
-static void BM_exo_swap(benchmark::State &state) {
+static void BM_exo_sswap_stride_1(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
 	std::vector<float> data_x(n);
 	std::vector<float> data_y(n);
@@ -30,15 +30,15 @@ static void BM_exo_swap(benchmark::State &state) {
 		}
 		state.ResumeTiming();
 
-		swap(nullptr, n, x, y);
+		exo_sswap_stride_1(nullptr, n, x, y);
 		benchmark::DoNotOptimize(data_x.data());
 		benchmark::DoNotOptimize(data_y.data());
 	}
 }
 
-BENCHMARK(BM_exo_swap)->RangeMultiplier(2)->Range(16, 1024);
+BENCHMARK(BM_exo_sswap_stride_1)->RangeMultiplier(2)->Range(16, 1024);
 
-static void BM_exomlir_exo_swap(benchmark::State &state) {
+static void BM_exomlir_exo_sswap_stride_1(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
 	std::vector<float> data_x(n);
 	std::vector<float> data_y(n);
@@ -58,12 +58,12 @@ static void BM_exomlir_exo_swap(benchmark::State &state) {
 		}
 		state.ResumeTiming();
 
-		exomlir_swap(n, data_x.data(), data_y.data());
+		exomlir_exo_sswap_stride_1(n, data_x.data(), data_y.data());
 		benchmark::DoNotOptimize(data_x.data());
 		benchmark::DoNotOptimize(data_y.data());
 	}
 }
 
-BENCHMARK(BM_exomlir_exo_swap)->RangeMultiplier(2)->Range(16, 1024);
+BENCHMARK(BM_exomlir_exo_sswap_stride_1)->RangeMultiplier(2)->Range(16, 1024);
 
 BENCHMARK_MAIN();

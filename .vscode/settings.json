@@ -107,7 +107,8 @@
 		"__node_handle": "cpp",
 		"ios": "cpp",
 		"locale": "cpp",
-		"stack": "cpp"
+		"stack": "cpp",
+		"__bit_reference": "cpp"
 	},
 	"mlir.server_path": "/usr/bin/mlir-lsp-server",
 	"git.ignoreLimitWarning": true,

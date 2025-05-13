@@ -166,18 +166,26 @@ def transform(
     Apply transformations to an MLIR module.
     """
 
+    InlineMemorySpacePass().apply(ctx, module)
+    module.verify()
+
+    ConvertScalarRefPass().apply(ctx, module)
+    module.verify()
+
+    ReconcileIndexCastsPass().apply(ctx, module)
+    module.verify()
+
+    CanonicalizePass().apply(ctx, module)
+    CommonSubexpressionElimination().apply(ctx, module)
+
+    module.verify()
+
     if opts.target == "exo":
         return module
 
     if opts.prefix is not None:
         AddPrefixPass(opts.prefix).apply(ctx, module)
         module.verify()
-
-    InlineMemorySpacePass().apply(ctx, module)
-    module.verify()
-
-    ConvertScalarRefPass().apply(ctx, module)
-    module.verify()
 
     ConvertTensorRefPass().apply(ctx, module)
     module.verify()
@@ -199,11 +207,18 @@ def transform(
     InlineBLASPass().apply(ctx, module)
     module.verify()
 
+    if opts.target == "lowered":
+        return module
+
     ConvertVectorToPtrPass().apply(ctx, module)
     LowerAffinePass().apply(ctx, module)
     ConvertMemRefToPtr(lower_func=True).apply(ctx, module)
     ConvertPtrTypeOffsetsPass().apply(ctx, module)
     ConvertPtrToLLVMPass().apply(ctx, module)
+
+    if opts.target == "scf":
+        return module
+
     ConvertScfToCf().apply(ctx, module)
     ReconcileUnrealizedCastsPass().apply(ctx, module)
     CanonicalizePass().apply(ctx, module)

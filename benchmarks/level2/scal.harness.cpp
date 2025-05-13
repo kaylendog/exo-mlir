@@ -1,23 +1,23 @@
 #include <benchmark/benchmark.h>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <random>
 #include <vector>
 
-#include <exocc/level1/swap.h>
+#include <exocc/level2/scal.h>
 
-extern "C" void exomlir_swap(int32_t n, const float *x, const float *y);
+extern "C" void exomlir_exo_sscal_stride_1(int32_t n, const float *alpha, const float *x);
 
-static void BM_exo_swap(benchmark::State &state) {
+static void BM_exo_sscal_stride_1(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
 	std::vector<float> data_x(n);
-	std::vector<float> data_y(n);
 
 	// setup rng
 	std::mt19937 rng(0);
 	std::uniform_real_distribution<float> dist(0.0f, 1.0f);
 
 	exo_win_1f32 x = {data_x.data(), {1}};
-	exo_win_1f32 y = {data_y.data(), {1}};
 
 	for (auto _ : state) {
 		state.PauseTiming();
@@ -25,20 +25,17 @@ static void BM_exo_swap(benchmark::State &state) {
 		for (auto &v : data_x) {
 			v = dist(rng);
 		}
-		for (auto &v : data_y) {
-			v = dist(rng);
-		}
+		float alpha = dist(rng);
 		state.ResumeTiming();
 
-		swap(nullptr, n, x, y);
+		exo_sscal_stride_1(nullptr, n, &alpha, x);
 		benchmark::DoNotOptimize(data_x.data());
-		benchmark::DoNotOptimize(data_y.data());
 	}
 }
 
-BENCHMARK(BM_exo_swap)->RangeMultiplier(2)->Range(16, 1024);
+BENCHMARK(BM_exo_sscal_stride_1)->RangeMultiplier(2)->Range(16, 1024);
 
-static void BM_exomlir_exo_swap(benchmark::State &state) {
+static void BM_exomlir_exo_sscal_stride_1(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
 	std::vector<float> data_x(n);
 	std::vector<float> data_y(n);
@@ -53,17 +50,14 @@ static void BM_exomlir_exo_swap(benchmark::State &state) {
 		for (auto &v : data_x) {
 			v = dist(rng);
 		}
-		for (auto &v : data_y) {
-			v = dist(rng);
-		}
+		float alpha = dist(rng);
 		state.ResumeTiming();
 
-		exomlir_swap(n, data_x.data(), data_y.data());
+		exomlir_exo_sscal_stride_1(n, &alpha, data_x.data());
 		benchmark::DoNotOptimize(data_x.data());
-		benchmark::DoNotOptimize(data_y.data());
 	}
 }
 
-BENCHMARK(BM_exomlir_exo_swap)->RangeMultiplier(2)->Range(16, 1024);
+BENCHMARK(BM_exomlir_exo_sscal_stride_1)->RangeMultiplier(2)->Range(16, 1024);
 
 BENCHMARK_MAIN();

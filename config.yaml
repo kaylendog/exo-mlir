@@ -17,8 +17,9 @@ procs:
     - "swap"
 
 levels:
+    # - scalar
     - level1
-    # - level2
+    - level2
 
 opt: ./vendor/llvm-project/build/bin/opt
 mlir-opt: ./vendor/llvm-project/build/bin/mlir-opt

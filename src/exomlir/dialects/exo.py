@@ -4,19 +4,14 @@ from typing import Annotated, ClassVar, TypeAlias
 from xdsl.dialects import arith, memref
 from xdsl.dialects.builtin import (
     I32,
-    AnyFloat,
     DenseArrayBase,
     FlatSymbolRefAttrConstr,
     Float16Type,
     Float32Type,
     Float64Type,
-    FloatAttr,
-    IndexTypeConstr,
-    IntegerAttr,
     IntegerType,
     MemRefType,
     Signedness,
-    SignlessIntegerConstraint,
     StringAttr,
     SymbolRefAttr,
     TupleType,
@@ -29,9 +24,8 @@ from xdsl.irdl import (
     AnyOf,
     Attribute,
     AttrSizedOperandSegments,
-    BaseAttr,
     IRDLOperation,
-    TypedAttributeConstraint,
+    ParsePropInAttrDict,
     VarConstraint,
     irdl_op_definition,
     operand_def,
@@ -39,6 +33,7 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
+from xdsl.printer import Printer
 
 SizeType: TypeAlias = arith.IndexType
 StrideType: TypeAlias = arith.IndexType
@@ -63,8 +58,9 @@ class AllocOp(IRDLOperation):
     name = "exo.alloc"
 
     result = result_def()
-
     mem = prop_def(StringAttr)
+
+    assembly_format = "$mem attr-dict `:` type($result)"
 
     def __init__(
         self,
@@ -79,42 +75,14 @@ class AllocOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ScalarOp(IRDLOperation):
-    name = "exo.scalar"
-
-    _T: ClassVar = VarConstraint("T", AnyAttr())
-    result = result_def(_T)
-    value = prop_def(
-        TypedAttributeConstraint(
-            IntegerAttr.constr(type=SignlessIntegerConstraint | IndexTypeConstr)
-            | BaseAttr[FloatAttr[AnyFloat]](FloatAttr),
-            _T,
-        )
-    )
-    mem = prop_def(StringAttr)
-
-    def __init__(
-        self,
-        value: Attribute,
-        mem: str,
-        result_type: Attribute,
-    ) -> None:
-        print(f"ScalarOp: {value}, {mem}, {result_type}")
-
-        super().__init__(
-            operands=[],
-            result_types=[result_type],
-            properties={"value": value, "mem": StringAttr(mem)},
-        )
-
-
-@irdl_op_definition
 class FreeOp(IRDLOperation):
     name = "exo.free"
 
     input = operand_def()
 
     mem = prop_def(StringAttr)
+
+    assembly_format = "$input $mem attr-dict `:` type($input)"
 
     def __init__(
         self,
@@ -136,6 +104,10 @@ class AssignOp(IRDLOperation):
     indices = var_operand_def(IndexType)
     value = operand_def()
 
+    assembly_format = (
+        "$input `[` $indices `]` `,` $value attr-dict `:` type($input) `,` type($value)"
+    )
+
     def __init__(
         self,
         input: SSAValue | Operation,
@@ -155,6 +127,10 @@ class ReduceOp(IRDLOperation):
     indices = var_operand_def(IndexType)
     value = operand_def()
 
+    assembly_format = (
+        "$input `[` $indices `]` `,` $value attr-dict `:` type($input) `,` type($value)"
+    )
+
     def __init__(
         self,
         input: SSAValue | Operation,
@@ -171,8 +147,7 @@ class ReadOp(IRDLOperation):
     name = "exo.read"
 
     input = operand_def()
-    indices = var_operand_def()
-
+    indices = var_operand_def(IndexType)
     result = result_def()
 
     def __init__(
@@ -197,6 +172,19 @@ class ReadOp(IRDLOperation):
                     f"Expected no indices for non-memref input, but got {self.indices}"
                 )
 
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print(self.input)
+        if len(self.indices) > 0:
+            printer.print("[")
+            for i, index in enumerate(self.indices):
+                if i > 0:
+                    printer.print(", ")
+                printer.print(index)
+            printer.print("]")
+        printer.print(" -> ")
+        printer.print(self.result.type)
+
 
 @irdl_op_definition
 class IntervalOp(IRDLOperation):
@@ -204,8 +192,9 @@ class IntervalOp(IRDLOperation):
 
     start = operand_def(IndexType)
     end = operand_def(IndexType)
-
     result = result_def(IntervalType)
+
+    assembly_format = "$start `,` $end attr-dict `:` type($result)"
 
     def __init__(
         self,
@@ -237,7 +226,7 @@ class WindowOp(IRDLOperation):
         MemRefType.constr(element_type=T),
     )
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
 
     def __init__(
         self,
@@ -273,8 +262,9 @@ class InstrOp(IRDLOperation):
     name = "exo.instr"
 
     arguments = var_operand_def()
-
     callee = prop_def(FlatSymbolRefAttrConstr)
+
+    assembly_format = "$callee attr-dict `(` $arguments `)` `:` type($arguments)"
 
     def __init__(
         self,
@@ -297,6 +287,10 @@ class ExternOp(IRDLOperation):
 
     callee = prop_def(FlatSymbolRefAttrConstr)
 
+    assembly_format = (
+        "$callee attr-dict `(` $arguments `)` `:` type($arguments) `->` type($result)"
+    )
+
     def __init__(
         self,
         callee: str | SymbolRefAttr,
@@ -314,6 +308,6 @@ class ExternOp(IRDLOperation):
 
 Exo = Dialect(
     "exo",
-    [AssignOp, ScalarOp, ReduceOp, ReadOp, WindowOp, IntervalOp, InstrOp],
+    [AssignOp, ReduceOp, ReadOp, WindowOp, IntervalOp, InstrOp],
     [],
 )

@@ -27,7 +27,7 @@ def main():
     parser.add_argument(
         "--target",
         default="llvm",
-        choices=["llvm", "exo", "builtin"],
+        choices=["llvm", "exo", "builtin", "lowered", "scf"],
     )
     parser.add_argument(
         "--prefix",

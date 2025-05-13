@@ -36,6 +36,16 @@ rule exomlir_compile_exomlir:
         uv run exo-mlir -o build/exomlir/{wildcards.level}/ benchmarks/{wildcards.level}/{wildcards.proc}.py --target llvm --prefix exomlir
         """
 
+rule exomlir_compile_exomlir_unlowered:
+    input:
+        "benchmarks/{level}/{proc}.py",
+    output:
+        "build/exomlir/{level}/{proc}.unlowered.mlir",
+    shell:
+        """
+        uv run exo-mlir -o build/exomlir/{wildcards.level}/ benchmarks/{wildcards.level}/{wildcards.proc}.py --target exo --prefix exomlir
+        """
+
 rule exomlir_compile_mliropt:
     input:
         "build/exomlir/{level}/{proc}.mlir",
@@ -98,6 +108,7 @@ rule benchmark_plot_instr_counts:
         "build/instrcount.csv"
     output:
         "build/plots/level1/instcount.png",
+        "build/plots/level2/instcount.png",
     shell:
         """
         python3 tools/plot-instruction-counts.py
@@ -134,6 +145,7 @@ rule benchmark_run_harnesses:
             --benchmark_format=csv \
             --benchmark_report_aggregates_only=false \
             --benchmark_repetitions=16 \
+            --benchmark_min_time=0.02s \
             > build/results/{wildcards.level}/{wildcards.proc}.csv
         """
 
@@ -187,11 +199,14 @@ rule benchmark_plot_results:
 rule all:
     input:
         "build/plots/level1/instcount.png",
+        "build/plots/level2/instcount.png",
         expand(
-            "build/correctness/level1/{proc}.out",
+            "build/correctness/{level}/{proc}.out",
+            level=config["levels"],
             proc=config["procs"]
         ),
         expand(
-            "build/plots/level1/{proc}.png",
+            "build/plots/{level}/{proc}.png",
+            level=config["levels"],
             proc=config["procs"]
         ),

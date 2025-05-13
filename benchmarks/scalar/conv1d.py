@@ -11,7 +11,7 @@ def conv1d(
     IC: size,
     OC: size,
     data: i32[IC, N],
-    kernels: i32[OC, IC, W],
+    kernels: i32[OC, IC, 4],
     out: i32[OC, N],
 ):
     # do the convolution
@@ -20,7 +20,7 @@ def conv1d(
             # zero out the result memory
             out[i, j] = 0.0
             for c in seq(0, IC):
-                for r in seq(0, W):
+                for r in seq(0, 4):
                     y: i32
                     if j + r < N:
                         y = data[c, j + r]

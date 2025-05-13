@@ -15,6 +15,10 @@ from exomlir.dialects import index
 class ReconcileIndexCasts(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: index.CastsOp, rewriter: PatternRewriter):
+        if len(op.result.uses) == 0:
+            rewriter.erase_matched_op()
+            return
+
         # replace x -> y -> x cast with x
         if not isinstance(op.input.owner, index.CastsOp):
             return

@@ -14,6 +14,10 @@ def gemm(
     a: f32[N, M] @ DRAM,
     b: f32[M, K] @ DRAM,
 ):
+    assert N <= 1024
+    assert M <= 1024
+    assert K <= 1024
+
     for i in seq(0, N):
         for j in seq(0, K):
             out[i, j] = 0.0

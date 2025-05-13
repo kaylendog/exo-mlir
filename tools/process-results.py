@@ -73,3 +73,6 @@ with open(input_path) as fin:
 
             if name.endswith("_stddev"):
                 results["stddev"] = float(row["cpu_time"])
+
+        # write last row
+        writer.writerow(results)
