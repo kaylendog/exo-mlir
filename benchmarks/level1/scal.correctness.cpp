@@ -8,7 +8,7 @@
 extern "C" void exomlir_scal_alpha_0(int32_t n, const float *x);
 
 int main() {
-	int_fast32_t n = 1024;
+	int_fast32_t n = 1 << 24;
 	std::vector<float> x(n);
 
 	// setup rng

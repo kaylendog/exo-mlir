@@ -114,6 +114,33 @@ rule benchmark_plot_instr_counts:
         python3 tools/plot-instruction-counts.py
         """
 
+rule benchmark_compile_correctness:
+    input:
+        "build/exocc/{level}/{proc}.o",
+        "build/exomlir/{level}/{proc}.o",
+        "benchmarks/{level}/{proc}.correctness.cpp",
+    output:
+        "build/correctness/{level}/{proc}.x",
+    shell:
+        """
+        clang++ -O3 -mavx -mfma -mavx2 -fuse-ld=lld \
+            -Ibuild \
+            -o build/correctness/{wildcards.level}/{wildcards.proc}.x \
+            build/exocc/{wildcards.level}/{wildcards.proc}.o \
+            build/exomlir/{wildcards.level}/{wildcards.proc}.o \
+            benchmarks/{wildcards.level}/{wildcards.proc}.correctness.cpp
+        """
+
+rule benchmark_run_correctness:
+    input:
+        "build/correctness/{level}/{proc}.x",
+    output:
+        "build/correctness/{level}/{proc}.out",
+    shell:
+        """
+        ./build/correctness/{wildcards.level}/{wildcards.proc}.x > build/correctness/{wildcards.level}/{wildcards.proc}.out
+        """
+
 rule benchmark_compile_harnesses:
     input:
         "build/exocc/{level}/{proc}.o",
@@ -149,32 +176,6 @@ rule benchmark_run_harnesses:
             > build/results/{wildcards.level}/{wildcards.proc}.csv
         """
 
-rule benchmark_compile_correctness:
-    input:
-        "build/exocc/{level}/{proc}.o",
-        "build/exomlir/{level}/{proc}.o",
-        "benchmarks/{level}/{proc}.correctness.cpp",
-    output:
-        "build/correctness/{level}/{proc}.x",
-    shell:
-        """
-        clang++ -O3 -mavx -mfma -mavx2 -fuse-ld=lld \
-            -Ibuild \
-            -o build/correctness/{wildcards.level}/{wildcards.proc}.x \
-            build/exocc/{wildcards.level}/{wildcards.proc}.o \
-            build/exomlir/{wildcards.level}/{wildcards.proc}.o \
-            benchmarks/{wildcards.level}/{wildcards.proc}.correctness.cpp
-        """
-
-rule benchmark_run_correctness:
-    input:
-        "build/correctness/{level}/{proc}.x",
-    output:
-        "build/correctness/{level}/{proc}.out",
-    shell:
-        """
-        ./build/correctness/{wildcards.level}/{wildcards.proc}.x > build/correctness/{wildcards.level}/{wildcards.proc}.out
-        """
 
 rule benchmark_process_results:
     input:
@@ -196,15 +197,37 @@ rule benchmark_plot_results:
         python3 tools/plot-benchmark-results.py {input} {wildcards.level} {wildcards.proc}
         """
 
+rule heatmaps:
+    input:
+        expand(
+            "build/plots/{level}/{proc}.processed.csv",
+            level=config["levels"],
+            proc=config["procs"]
+        )
+    output:
+        "build/plots/level1/heatmap.png",
+        "build/plots/level2/heatmap.png",
+    shell:
+        """
+        python3 tools/plot-heatmaps.py build/plots/level1/ && \
+        python3 tools/plot-heatmaps.py build/plots/level2/
+        """
+
 rule all:
     input:
+        # inst counts
         "build/plots/level1/instcount.png",
         "build/plots/level2/instcount.png",
+        # heatmaps
+        "build/plots/level1/heatmap.png",
+        "build/plots/level2/heatmap.png",
+        # correctness
         expand(
             "build/correctness/{level}/{proc}.out",
             level=config["levels"],
             proc=config["procs"]
         ),
+        # benchmarks
         expand(
             "build/plots/{level}/{proc}.png",
             level=config["levels"],

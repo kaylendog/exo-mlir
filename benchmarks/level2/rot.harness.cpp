@@ -40,7 +40,7 @@ static void BM_exo_srot_stride_1(benchmark::State &state) {
 	}
 }
 
-BENCHMARK(BM_exo_srot_stride_1)->RangeMultiplier(2)->Range(16, 1024);
+BENCHMARK(BM_exo_srot_stride_1)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
 
 static void BM_exomlir_exo_srot_stride_1(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
@@ -70,6 +70,6 @@ static void BM_exomlir_exo_srot_stride_1(benchmark::State &state) {
 	}
 }
 
-BENCHMARK(BM_exomlir_exo_srot_stride_1)->RangeMultiplier(2)->Range(16, 1024);
+BENCHMARK(BM_exomlir_exo_srot_stride_1)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
 
 BENCHMARK_MAIN();

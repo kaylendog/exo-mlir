@@ -36,7 +36,7 @@ static void BM_conv1d(benchmark::State &state) {
 	}
 }
 
-// BENCHMARK(BM_conv1d)->RangeMultiplier(2)->Ranges({{16, 1024}, {4, 4}, {4, 4}});
+BENCHMARK(BM_conv1d)->RangeMultiplier(2)->Ranges({{16, 1 << 24}, {4, 4}, {4, 4}});
 
 static void BM_exomlir_conv1d(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
@@ -66,6 +66,6 @@ static void BM_exomlir_conv1d(benchmark::State &state) {
 	}
 }
 
-BENCHMARK(BM_exomlir_conv1d)->RangeMultiplier(2)->Ranges({{16, 1024}, {4, 4}, {4, 4}});
+BENCHMARK(BM_exomlir_conv1d)->RangeMultiplier(2)->Ranges({{16, 1 << 24}, {4, 4}, {4, 4}});
 
 BENCHMARK_MAIN();
