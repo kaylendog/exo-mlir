@@ -3,9 +3,9 @@
 #include <random>
 #include <vector>
 
-#include <exocc/level1/asum.h>
+#include <exocc/level2/asum.h>
 
-extern "C" void exomlir_asum(int32_t n, const float *x, float *result);
+extern "C" void exomlir_exo_sasum_stride_1(int32_t n, const float *x, float *result);
 
 int main() {
 	int_fast32_t n = 1 << 24;
@@ -25,8 +25,8 @@ int main() {
 
 	exo_win_1f32c exocc_x = {x.data(), {1}};
 
-	asum(nullptr, n, exocc_x, &result_exocc);
-	exomlir_asum(n, x.data(), &result_exomlir);
+	exo_sasum_stride_1(nullptr, n, exocc_x, &result_exocc);
+	exomlir_exo_sasum_stride_1(n, x.data(), &result_exomlir);
 
 	float precision = 1e-6f;
 

@@ -24,6 +24,15 @@ from exomlir.dialects import exo, index
 class ConvertRedundantReads(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: exo.ReadOp, rewriter: PatternRewriter):
+        # # replace redundant reads
+        # if (
+        #     isinstance(op.input.type, MemRefType)
+        #     and op.result.type == op.input.type
+        #     and len(op.indices) == 0
+        # ):
+        #     rewriter.replace_matched_op((), (op.input,))
+        #     return
+
         # convert scalar reads only
         if isinstance(op.input.type, MemRefType):
             return

@@ -1,20 +1,17 @@
 from xdsl.context import Context
 from xdsl.dialects import arith, memref
 from xdsl.dialects.builtin import (
-    i16,
-    i32,
-    i64,
-    f16,
-    f32,
-    f64,
-    f80,
-    f128,
     IndexType,
     IntegerAttr,
     MemRefType,
     ModuleOp,
     NoneAttr,
     StridedLayoutAttr,
+    f16,
+    f32,
+    f64,
+    f80,
+    f128,
 )
 from xdsl.dialects.utils import get_dynamic_index_list
 from xdsl.ir import Operation, OpResult

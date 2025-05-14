@@ -10,19 +10,19 @@
         },
         "load_mem_traffic": {
             "algorithm": "8*(3*n)",
-            "scheduled": "8*(8*(Mod(floor(n/4 + 3/4) + 1, 2)) + 32*floor(floor(n/4 + 3/4)/4 - 1/4) + 16*floor((Mod(floor(n/4 + 3/4) + 3, 4))/2))"
+            "scheduled": "8*(3*n)"
         },
         "load_mem_traffic_upper_bound": {
             "algorithm": "8*(3*n)",
-            "scheduled": "8*(2*n + 30)"
+            "scheduled": "8*(3*n)"
         },
         "store_mem_traffic": {
             "algorithm": "8*(3*n)",
-            "scheduled": "8*(8*(Mod(floor(n/4 + 3/4) + 1, 2)) + 32*floor(floor(n/4 + 3/4)/4 - 1/4) + 16*floor((Mod(floor(n/4 + 3/4) + 3, 4))/2))"
+            "scheduled": "8*(3*n)"
         },
         "store_mem_traffic_upper_bound": {
             "algorithm": "8*(3*n)",
-            "scheduled": "8*(2*n + 30)"
+            "scheduled": "8*(3*n)"
         }
     },
     "sswap_stride_1": {
@@ -36,19 +36,19 @@
         },
         "load_mem_traffic": {
             "algorithm": "4*(3*n)",
-            "scheduled": "4*(3*n)"
+            "scheduled": "4*(16*(Mod(floor(n/8 + 7/8) + 1, 2)) + 64*floor(floor(n/8 + 7/8)/4 - 1/4) + 32*floor((Mod(floor(n/8 + 7/8) + 3, 4))/2))"
         },
         "load_mem_traffic_upper_bound": {
             "algorithm": "4*(3*n)",
-            "scheduled": "4*(3*n)"
+            "scheduled": "4*(2*n + 62)"
         },
         "store_mem_traffic": {
             "algorithm": "4*(3*n)",
-            "scheduled": "4*(3*n)"
+            "scheduled": "4*(16*(Mod(floor(n/8 + 7/8) + 1, 2)) + 64*floor(floor(n/8 + 7/8)/4 - 1/4) + 32*floor((Mod(floor(n/8 + 7/8) + 3, 4))/2))"
         },
         "store_mem_traffic_upper_bound": {
             "algorithm": "4*(3*n)",
-            "scheduled": "4*(3*n)"
+            "scheduled": "4*(2*n + 62)"
         }
     }
 }

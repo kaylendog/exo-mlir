@@ -1,47 +1,40 @@
 #include <benchmark/benchmark.h>
 #include <cstdint>
-#include <cstdlib>
-#include <cstring>
 #include <random>
 #include <vector>
 
-#include <benchmark/benchmark.h>
+#include <exocc/level2/asum.h>
 
-#include <exocc/level1/asum.h>
+extern "C" void exomlir_exo_sasum_stride_1(int32_t n, const float *x, float *result);
 
-extern "C" void exomlir_asum(int32_t n, const float *x, float *result);
-
-static void BM_asum(benchmark::State &state) {
+static void BM_exo_sasum_stride_1(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
-	std::vector<float> data(n);
+	std::vector<float> x(n);
 
 	// setup rng
 	std::mt19937 rng(0);
 	std::uniform_real_distribution<float> dist(0.0f, 1.0f);
 
 	float result = 0.0f;
-	exo_win_1f32c x = {data.data(), {1}};
 
 	for (auto _ : state) {
+		state.PauseTiming();
 		// fill data
-		state.PauseTiming();
-		for (auto &d : data) {
-			d = dist(rng);
+		for (auto &v : x) {
+			v = dist(rng);
 		}
 		state.ResumeTiming();
 
-		asum(nullptr, n, x, &result);
+		exo_sasum_stride_1(nullptr, n, {x.data(), {1}}, &result);
 		benchmark::DoNotOptimize(result);
 	}
-
-	state.SetItemsProcessed(state.iterations() * n);
 }
 
-BENCHMARK(BM_asum)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
+BENCHMARK(BM_exo_sasum_stride_1)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
 
-static void BM_exomlir_asum(benchmark::State &state) {
+static void BM_exomlir_exo_sasum_stride_1(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
-	std::vector<float> data(n);
+	std::vector<float> x(n);
 
 	// setup rng
 	std::mt19937 rng(0);
@@ -51,18 +44,17 @@ static void BM_exomlir_asum(benchmark::State &state) {
 
 	for (auto _ : state) {
 		state.PauseTiming();
-		for (auto &d : data) {
-			d = dist(rng);
+		// fill data
+		for (auto &v : x) {
+			v = dist(rng);
 		}
 		state.ResumeTiming();
 
-		exomlir_asum(n, data.data(), &result);
+		exomlir_exo_sasum_stride_1(n, x.data(), &result);
 		benchmark::DoNotOptimize(result);
 	}
-
-	state.SetItemsProcessed(state.iterations() * n);
 }
 
-BENCHMARK(BM_exomlir_asum)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
+BENCHMARK(BM_exomlir_exo_sasum_stride_1)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
 
 BENCHMARK_MAIN();

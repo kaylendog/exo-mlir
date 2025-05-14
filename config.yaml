@@ -5,21 +5,14 @@ cflags: -std=c17 -O3 -Wall -Wextra
 cxxflags: -std=c++17 -O3 -Wall -Wextra
 ldflags: -lm
 
-procs:
-    - "asum"
-    - "axpy"
-    # - "conv1d"
-    - "dot"
-    - "exo_copy"
-    # - "gemm"
-    - "rot"
-    - "scal"
-    - "swap"
-
 levels:
-    # - scalar
-    - level1
-    - level2
+    level1:
+        - asum
+        - axpy
+        - dot
+        - exo_copy
+        - rot
+        - scal
 
 opt: ./vendor/llvm-project/build/bin/opt
 mlir-opt: ./vendor/llvm-project/build/bin/mlir-opt

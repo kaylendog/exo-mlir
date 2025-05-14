@@ -1,5 +1,5 @@
 {
-    "dscal_alpha_0_stride_1": {
+    "dgemm_stride_1": {
         "flops": {
             "algorithm": "0",
             "scheduled": "0"
@@ -10,22 +10,22 @@
         },
         "load_mem_traffic": {
             "algorithm": "0",
-            "scheduled": "0"
+            "scheduled": "8*1"
         },
         "load_mem_traffic_upper_bound": {
             "algorithm": "0",
-            "scheduled": "0"
+            "scheduled": "8*1"
         },
         "store_mem_traffic": {
-            "algorithm": "8*n",
-            "scheduled": "8*n"
+            "algorithm": "0",
+            "scheduled": "8*1"
         },
         "store_mem_traffic_upper_bound": {
-            "algorithm": "8*n",
-            "scheduled": "8*n"
+            "algorithm": "0",
+            "scheduled": "8*1"
         }
     },
-    "sscal_alpha_0_stride_1": {
+    "sgemm_stride_1": {
         "flops": {
             "algorithm": "0",
             "scheduled": "0"
@@ -36,19 +36,19 @@
         },
         "load_mem_traffic": {
             "algorithm": "0",
-            "scheduled": "4*0"
+            "scheduled": "4*1"
         },
         "load_mem_traffic_upper_bound": {
             "algorithm": "0",
-            "scheduled": "4*0"
+            "scheduled": "4*1"
         },
         "store_mem_traffic": {
-            "algorithm": "4*n",
-            "scheduled": "4*(8*(Mod(floor(n/8 + 7/8) + 1, 2)) + 32*floor(floor(n/8 + 7/8)/4 - 1/4) + 16*floor((Mod(floor(n/8 + 7/8) + 3, 4))/2))"
+            "algorithm": "0",
+            "scheduled": "4*1"
         },
         "store_mem_traffic_upper_bound": {
-            "algorithm": "4*n",
-            "scheduled": "4*(n + 31)"
+            "algorithm": "0",
+            "scheduled": "4*1"
         }
     }
 }

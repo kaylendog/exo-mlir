@@ -3,9 +3,9 @@
 #include <random>
 #include <vector>
 
-#include <exocc/level1/axpy.h>
+#include <exocc/level2/axpy.h>
 
-extern "C" void exomlir_axpy_alpha_1(int32_t n, const float *x, float *y);
+extern "C" void exomlir_exo_saxpy_stride_1(int32_t n, const float *alpha, const float *x, float *y);
 
 int main() {
 	int_fast32_t n = 1 << 24;
@@ -33,8 +33,10 @@ int main() {
 	exo_win_1f32c exocc_x = {x.data(), {1}};
 	exo_win_1f32 exocc_y = {y.data(), {1}};
 
-	axpy_alpha_1(nullptr, n, exocc_x, exocc_y);
-	exomlir_axpy_alpha_1(n, exomlir_x.data(), exomlir_y.data());
+	float alpha = dist(rng);
+
+	exo_saxpy_stride_1(nullptr, n, &alpha, exocc_x, exocc_y);
+	exomlir_exo_saxpy_stride_1(n, &alpha, exomlir_x.data(), exomlir_y.data());
 
 	float precision = 1e-6f;
 

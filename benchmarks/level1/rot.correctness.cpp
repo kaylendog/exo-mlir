@@ -3,9 +3,9 @@
 #include <random>
 #include <vector>
 
-#include <exocc/level1/rot.h>
+#include <exocc/level2/rot.h>
 
-extern "C" void exomlir_rot(int32_t n, const float *x, const float *y, const float *c, const float *s);
+extern "C" void exomlir_exo_srot_stride_1(int32_t n, const float *x, const float *y, const float *c, const float *s);
 
 int main() {
 	int_fast32_t n = 1 << 24;
@@ -30,8 +30,8 @@ int main() {
 	std::vector<float> exomlir_x(x);
 	std::vector<float> exomlir_y(y);
 
-	rot(nullptr, n, exocc_x, exocc_y, &c, &s);
-	exomlir_rot(n, exomlir_x.data(), exomlir_y.data(), &c, &s);
+	exo_srot_stride_1(nullptr, n, exocc_x, exocc_y, &c, &s);
+	exomlir_exo_srot_stride_1(n, exomlir_x.data(), exomlir_y.data(), &c, &s);
 
 	float precision = 1e-6f;
 

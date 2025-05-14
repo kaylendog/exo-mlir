@@ -3,9 +3,9 @@
 #include <random>
 #include <vector>
 
-#include <exocc/level1/swap.h>
+#include <exocc/level2/swap.h>
 
-extern "C" void exomlir_swap(int32_t n, const float *x, float *y);
+extern "C" void exomlir_exo_sswap_stride_1(int32_t n, const float *x, float *y);
 
 int main() {
 	int_fast32_t n = 1 << 24;
@@ -30,8 +30,8 @@ int main() {
 	std::vector<float> exomlir_x(x);
 	std::vector<float> exomlir_y(y);
 
-	swap(nullptr, n, exocc_x, exocc_y);
-	exomlir_swap(n, exomlir_x.data(), exomlir_y.data());
+	exo_sswap_stride_1(nullptr, n, exocc_x, exocc_y);
+	exomlir_exo_sswap_stride_1(n, exomlir_x.data(), exomlir_y.data());
 
 	float precision = 1e-6f;
 

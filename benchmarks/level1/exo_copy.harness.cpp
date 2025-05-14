@@ -1,63 +1,66 @@
 #include <benchmark/benchmark.h>
 #include <cstdint>
-#include <cstdlib>
-#include <cstring>
 #include <random>
 #include <vector>
 
-#include <exocc/level1/exo_copy.h>
+#include <exocc/level2/exo_copy.h>
 
-extern "C" void exomlir_copy(int32_t n, const float *x, float *y);
+extern "C" void exomlir_exo_scopy_stride_1(int32_t n, const float *x, const float *y);
 
-static void BM_exo_copy(benchmark::State &state) {
+static void BM_exo_scopy_stride_1(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
-	std::vector<float> data_x(n);
-	std::vector<float> data_y(n);
+	std::vector<float> x(n);
+	std::vector<float> y(n);
 
 	// setup rng
 	std::mt19937 rng(0);
 	std::uniform_real_distribution<float> dist(0.0f, 1.0f);
 
-	exo_win_1f32c x = {data_x.data(), {1}};
-	exo_win_1f32 y = {data_y.data(), {1}};
+	float result = 0.0f;
 
 	for (auto _ : state) {
 		state.PauseTiming();
 		// fill data
-		for (auto &v : data_x) {
+		for (auto &v : x) {
+			v = dist(rng);
+		}
+		for (auto &v : y) {
 			v = dist(rng);
 		}
 		state.ResumeTiming();
-
-		copy(nullptr, n, x, y);
-		benchmark::DoNotOptimize(data_y.data());
+		exo_scopy_stride_1(nullptr, n, {x.data(), {1}}, {y.data(), {1}});
+		benchmark::DoNotOptimize(y.data());
 	}
 }
 
-BENCHMARK(BM_exo_copy)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
+BENCHMARK(BM_exo_scopy_stride_1)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
 
-static void BM_exomlir_exo_copy(benchmark::State &state) {
+static void BM_exomlir_exo_scopy_stride_1(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
-	std::vector<float> data_x(n);
-	std::vector<float> data_y(n);
+	std::vector<float> x(n);
+	std::vector<float> y(n);
 
 	// setup rng
 	std::mt19937 rng(0);
 	std::uniform_real_distribution<float> dist(0.0f, 1.0f);
 
+	float result = 0.0f;
+
 	for (auto _ : state) {
 		state.PauseTiming();
 		// fill data
-		for (auto &v : data_x) {
+		for (auto &v : x) {
+			v = dist(rng);
+		}
+		for (auto &v : y) {
 			v = dist(rng);
 		}
 		state.ResumeTiming();
-
-		exomlir_copy(n, data_x.data(), data_y.data());
-		benchmark::DoNotOptimize(data_y.data());
+		exomlir_exo_scopy_stride_1(n, x.data(), y.data());
+		benchmark::DoNotOptimize(y.data());
 	}
 }
 
-BENCHMARK(BM_exomlir_exo_copy)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
+BENCHMARK(BM_exomlir_exo_scopy_stride_1)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
 
 BENCHMARK_MAIN();

@@ -1,23 +1,24 @@
 from __future__ import annotations
+
+import inspect
+import json
 from dataclasses import dataclass
 from pathlib import Path
-import json
-import inspect
 
 from exo import *
+from exo.API_cursors import *
+from exo.frontend.syntax import *
 from exo.libs.memories import *
 from exo.platforms.neon import *
-from exo.frontend.syntax import *
 from exo.stdlib.scheduling import *
-from exo.API_cursors import *
 
-from exoblas.inspection import *
-from exoblas.higher_order import *
+import exoblas.blaslib
+from exoblas.cblas_enums import *
 from exoblas.exo_blas_config import Machine
+from exoblas.higher_order import *
+from exoblas.inspection import *
 from exoblas.perf_features import *
 from exoblas.stdlib import *
-from exoblas.cblas_enums import *
-from exoblas.blaslib import blas_specialize_precision
 
 
 def generate_stride_any_proc(proc):
@@ -209,7 +210,7 @@ def variants_generator(
     def generate(proc, loop_name, *args, globals=None, **kwargs):
         perf_features = {}
         for precision in ("f32", "f64"):
-            proc_variant = blas_specialize_precision(proc, precision)
+            proc_variant = exoblas.blaslib.blas_specialize_precision(proc, precision)
 
             stride_any = generate_stride_any_proc(proc_variant)
             stride_any = stage_scalar_args(stride_any)

@@ -5,11 +5,11 @@
 #include <random>
 #include <vector>
 
-#include <exocc/level1/scal.h>
+#include <exocc/level2/scal.h>
 
-extern "C" void exomlir_scal(int32_t n, const float *alpha, const float *x);
+extern "C" void exomlir_exo_sscal_stride_1(int32_t n, const float *alpha, const float *x);
 
-static void BM_exo_scal_alpha0(benchmark::State &state) {
+static void BM_exo_sscal_stride_1(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
 	std::vector<float> data_x(n);
 
@@ -28,14 +28,14 @@ static void BM_exo_scal_alpha0(benchmark::State &state) {
 		float alpha = dist(rng);
 		state.ResumeTiming();
 
-		scal(nullptr, n, &alpha, x);
+		exo_sscal_stride_1(nullptr, n, &alpha, x);
 		benchmark::DoNotOptimize(data_x.data());
 	}
 }
 
-BENCHMARK(BM_exo_scal_alpha0)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
+BENCHMARK(BM_exo_sscal_stride_1)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
 
-static void BM_exomlir_exo_scal(benchmark::State &state) {
+static void BM_exomlir_exo_sscal_stride_1(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
 	std::vector<float> data_x(n);
 	std::vector<float> data_y(n);
@@ -53,11 +53,11 @@ static void BM_exomlir_exo_scal(benchmark::State &state) {
 		float alpha = dist(rng);
 		state.ResumeTiming();
 
-		exomlir_scal(n, &alpha, data_x.data());
+		exomlir_exo_sscal_stride_1(n, &alpha, data_x.data());
 		benchmark::DoNotOptimize(data_x.data());
 	}
 }
 
-BENCHMARK(BM_exomlir_exo_scal)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
+BENCHMARK(BM_exomlir_exo_sscal_stride_1)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
 
 BENCHMARK_MAIN();

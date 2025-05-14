@@ -1,17 +1,18 @@
 from __future__ import annotations
+
 from enum import Enum
 
 from exo import *
-from exo.libs.memories import DRAM_STATIC
-from exo.platforms.x86 import *
-from exo.platforms.neon import *
-from exo.frontend.syntax import *
-from exo.stdlib.scheduling import *
 from exo.API_cursors import *
+from exo.frontend.syntax import *
+from exo.libs.memories import DRAM_STATIC
+from exo.platforms.neon import *
+from exo.platforms.x86 import *
+from exo.stdlib.scheduling import *
 
-from exoblas.stdlib import *
-from exoblas.inspection import *
 from exoblas.codegen_helpers import *
+from exoblas.inspection import *
+from exoblas.stdlib import *
 
 
 def blas_specialize_precision(proc, precision, all_buffs=True):

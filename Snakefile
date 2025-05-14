@@ -3,6 +3,27 @@ import subprocess
 
 configfile: "config.yaml"
 
+LEVEL_1_PROCS = [
+    "asum",
+    "axpy",
+    "dot",
+    "exo_copy",
+    "rot",
+    "scal",
+    "swap",
+]
+LEVEL_2_PROCS = [
+    "gemm",
+    "mscal",
+    "symm",
+    "syr2k",
+    "syrk",
+    "trmm",
+]
+
+
+# ---- EXOCC ----
+
 rule exocc_compile_exocc:
     input:
         "benchmarks/{level}/{proc}.py",
@@ -14,17 +35,18 @@ rule exocc_compile_exocc:
         exocc -o build/exocc/{wildcards.level} benchmarks/{wildcards.level}/{wildcards.proc}.py
         """
 
-rule exocc_compile_clang_llvm:
+rule exocc_compile_gcc:
     input:
         "build/exocc/{level}/{proc}.c",
         "build/exocc/{level}/{proc}.h",
     output:
-        "build/exocc/{level}/{proc}.ll",
+        "build/exocc/{level}/{proc}.o",
     shell:
         """
-        clang -O0 -Xclang -disable-O0-optnone -mavx -mfma -mavx2 -S -emit-llvm build/exocc/{wildcards.level}/{wildcards.proc}.c -o build/exocc/{wildcards.level}/{wildcards.proc}.ll
+        gcc -O3 -mavx -mfma -mavx2 -c build/exocc/{wildcards.level}/{wildcards.proc}.c -o build/exocc/{wildcards.level}/{wildcards.proc}.o -save-temps=obj
         """
 
+# ---- EXOMLIR ----
 
 rule exomlir_compile_exomlir:
     input:
@@ -34,16 +56,6 @@ rule exomlir_compile_exomlir:
     shell:
         """
         uv run exo-mlir -o build/exomlir/{wildcards.level}/ benchmarks/{wildcards.level}/{wildcards.proc}.py --target llvm --prefix exomlir
-        """
-
-rule exomlir_compile_exomlir_unlowered:
-    input:
-        "benchmarks/{level}/{proc}.py",
-    output:
-        "build/exomlir/{level}/{proc}.unlowered.mlir",
-    shell:
-        """
-        uv run exo-mlir -o build/exomlir/{wildcards.level}/ benchmarks/{wildcards.level}/{wildcards.proc}.py --target exo --prefix exomlir
         """
 
 rule exomlir_compile_mliropt:
@@ -66,53 +78,17 @@ rule exomlir_compile_mlirtranslate:
         mlir-translate -mlir-to-llvmir build/exomlir/{wildcards.level}/{wildcards.proc}.lowered.mlir > build/exomlir/{wildcards.level}/{wildcards.proc}.ll
         """
 
-rule llvm_optimise:
+rule exomlir_compile_clang:
     input:
-        "build/{compiler}/{level}/{proc}.ll",
+        "build/exomlir{level}/{proc}.ll",
     output:
-        "build/{compiler}/{level}/{proc}.bc",
+        "build/exomlir{level}/{proc}.o",
     shell:
         """
-        opt -march=x86-64 -mcpu=btver2 -O3 -o build/{wildcards.compiler}/{wildcards.level}/{wildcards.proc}.bc build/{wildcards.compiler}/{wildcards.level}/{wildcards.proc}.ll
+        clang -O3 -mavx -mfma -mavx2 -c build/exomlir/{wildcards.level}/{wildcards.proc}.ll -o build/exomlir/{wildcards.level}/{wildcards.proc}.o --save-temps=obj
         """
 
-rule llc_compile:
-    input:
-        "build/{compiler}/{level}/{proc}.bc",
-    output:
-        "build/{compiler}/{level}/{proc}.o",
-    shell:
-        """
-        llc -O3 -march=x86-64 -mcpu=btver2 -filetype=obj -o build/{wildcards.compiler}/{wildcards.level}/{wildcards.proc}.o build/{wildcards.compiler}/{wildcards.level}/{wildcards.proc}.bc
-        """
-
-rule benchmark_count_instrs:
-    input:
-        expand(
-            "build/{compiler}/{level}/{proc}.bc",
-            compiler=["exocc", "exomlir"],
-            level=config["levels"],
-            proc=config["procs"]
-        )
-    output:
-        "build/instrcount.csv"
-    params:
-        opt=config["opt"]
-    shell:
-        """
-        python3 tools/count-instructions.py {params.opt} ./build > build/instrcount.csv
-        """
-
-rule benchmark_plot_instr_counts:
-    input:
-        "build/instrcount.csv"
-    output:
-        "build/plots/level1/instcount.png",
-        "build/plots/level2/instcount.png",
-    shell:
-        """
-        python3 tools/plot-instruction-counts.py
-        """
+# ---- CORRECTNESS ----
 
 rule benchmark_compile_correctness:
     input:
@@ -123,7 +99,7 @@ rule benchmark_compile_correctness:
         "build/correctness/{level}/{proc}.x",
     shell:
         """
-        clang++ -O3 -mavx -mfma -mavx2 -fuse-ld=lld \
+        clang++ -O3 -mavx -mfma -mavx2 -fuse-ld=lld -fsanitize=address -g \
             -Ibuild \
             -o build/correctness/{wildcards.level}/{wildcards.proc}.x \
             build/exocc/{wildcards.level}/{wildcards.proc}.o \
@@ -141,11 +117,15 @@ rule benchmark_run_correctness:
         ./build/correctness/{wildcards.level}/{wildcards.proc}.x > build/correctness/{wildcards.level}/{wildcards.proc}.out
         """
 
+# ---- BENCHMARKS ----
+
 rule benchmark_compile_harnesses:
     input:
         "build/exocc/{level}/{proc}.o",
         "build/exomlir/{level}/{proc}.o",
         "benchmarks/{level}/{proc}.harness.cpp",
+        # dependency on correctness
+        "build/correctness/{level}/{proc}.out"
     output:
         "build/harnesses/{level}/{proc}.x",
     shell:
@@ -160,76 +140,117 @@ rule benchmark_compile_harnesses:
             build/exomlir/{wildcards.level}/{wildcards.proc}.o \
             benchmarks/{wildcards.level}/{wildcards.proc}.harness.cpp
         """
-
-rule benchmark_run_harnesses:
-    input:
-        "build/harnesses/{level}/{proc}.x",
-    output:
-        "build/results/{level}/{proc}.csv",
-    shell:
-        """
-        ./build/harnesses/{wildcards.level}/{wildcards.proc}.x \
-            --benchmark_format=csv \
-            --benchmark_report_aggregates_only=false \
-            --benchmark_repetitions=16 \
-            --benchmark_min_time=0.02s \
-            > build/results/{wildcards.level}/{wildcards.proc}.csv
-        """
-
-
-rule benchmark_process_results:
-    input:
-        "build/results/{level}/{proc}.csv",
-    output:
-        "build/results/{level}/{proc}.processed.csv",
-    shell:
-        """
-        python3 tools/process-results.py {input}
-        """
-
-rule benchmark_plot_results:
-    input:
-        "build/results/{level}/{proc}.processed.csv",
-    output:
-        "build/plots/{level}/{proc}.png",
-    shell:
-        """
-        python3 tools/plot-benchmark-results.py {input} {wildcards.level} {wildcards.proc}
-        """
-
-rule heatmaps:
-    input:
-        expand(
-            "build/plots/{level}/{proc}.processed.csv",
-            level=config["levels"],
-            proc=config["procs"]
-        )
-    output:
-        "build/plots/level1/heatmap.png",
-        "build/plots/level2/heatmap.png",
-    shell:
-        """
-        python3 tools/plot-heatmaps.py build/plots/level1/ && \
-        python3 tools/plot-heatmaps.py build/plots/level2/
-        """
-
 rule all:
     input:
-        # inst counts
-        "build/plots/level1/instcount.png",
-        "build/plots/level2/instcount.png",
-        # heatmaps
-        "build/plots/level1/heatmap.png",
-        "build/plots/level2/heatmap.png",
         # correctness
         expand(
-            "build/correctness/{level}/{proc}.out",
-            level=config["levels"],
-            proc=config["procs"]
+            "build/correctness/level1/{proc}.out",
+            proc=LEVEL_1_PROCS
         ),
-        # benchmarks
-        expand(
-            "build/plots/{level}/{proc}.png",
-            level=config["levels"],
-            proc=config["procs"]
-        ),
+        # expand(
+        #     "build/correctness/level2/{proc}.out",
+        #     proc=LEVEL_2_PROCS
+        # ),
+
+# rule benchmark_count_instrs:
+#     input:
+#         expand(
+#             "build/{compiler}/{level}/{proc}.bc",
+#             compiler=["exocc", "exomlir"],
+#             level=config["levels"],
+#             proc=config["procs"]
+#         )
+#     output:
+#         "build/instrcount.csv"
+#     params:
+#         opt=config["opt"]
+#     shell:
+#         """
+#         python3 tools/count-instructions.py {params.opt} ./build > build/instrcount.csv
+#         """
+
+# rule benchmark_plot_instr_counts:
+#     input:
+#         "build/instrcount.csv"
+#     output:
+#         "build/plots/level1/instcount.png",
+#         "build/plots/level2/instcount.png",
+#     shell:
+#         """
+#         python3 tools/plot-instruction-counts.py
+#         """
+
+
+# rule benchmark_run_harnesses:
+#     input:
+#         "build/harnesses/{level}/{proc}.x",
+#     output:
+#         "build/results/{level}/{proc}.csv",
+#     shell:
+#         """
+#         ./build/harnesses/{wildcards.level}/{wildcards.proc}.x \
+#             --benchmark_format=csv \
+#             --benchmark_report_aggregates_only=false \
+#             --benchmark_repetitions=16 \
+#             > build/results/{wildcards.level}/{wildcards.proc}.csv
+#         """
+
+
+# rule benchmark_process_results:
+#     input:
+#         "build/results/{level}/{proc}.csv",
+#     output:
+#         "build/results/{level}/{proc}.processed.csv",
+#     shell:
+#         """
+#         python3 tools/process-results.py {input}
+#         """
+
+# rule benchmark_plot_results:
+#     input:
+#         "build/results/{level}/{proc}.processed.csv",
+#     output:
+#         "build/plots/{level}/{proc}.png",
+#     shell:
+#         """
+#         python3 tools/plot-benchmark-results.py {input} {wildcards.level} {wildcards.proc}
+#         """
+
+# rule heatmaps:
+#     input:
+#         expand(
+#             "build/plots/{level}/{proc}.processed.csv",
+#             level=config["levels"],
+#             proc=config["procs"]
+#         )
+#     output:
+#         "build/plots/level1/heatmap.png",
+#         "build/plots/level2/heatmap.png",
+#     shell:
+#         """
+#         python3 tools/plot-heatmaps.py build/plots/level1/ && \
+#         python3 tools/plot-heatmaps.py build/plots/level2/
+#         """
+
+# rule all:
+#     input:
+#         # inst counts
+#         "build/plots/level1/instcount.png",
+#         "build/plots/level2/instcount.png",
+#         # heatmaps
+#         "build/plots/level1/heatmap.png",
+#         "build/plots/level2/heatmap.png",
+#         # correctness
+#         expand(
+#             "build/correctness/{level}/{proc}.out",
+#             level=config["levels"],
+#             proc=config["procs"]
+#         ),
+#         # benchmarks
+#         expand(
+#             "build/plots/{level}/{proc}.png",
+#             level=config["levels"],
+#             proc=config["procs"]
+#         ),
+
+
