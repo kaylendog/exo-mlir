@@ -115,7 +115,7 @@ class ConvertVecAbsF32x8Pfx(RewritePattern):
 
         assert len(op.arguments) == 3
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src: [f32][8] @ VEC_AVX2
@@ -225,7 +225,7 @@ class ConvertVecAbsF64x4Pfx(RewritePattern):
 
         assert len(op.arguments) == 3
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src: [f64][4] @ VEC_AVX2
@@ -337,7 +337,7 @@ class ConvertVecAddRedF32x8Pfx(RewritePattern):
 
         assert len(op.arguments) == 3
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src: [f32][8] @ VEC_AVX2
@@ -444,7 +444,7 @@ class ConvertVecAddRedF64x4Pfx(RewritePattern):
 
         assert len(op.arguments) == 3
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src: [f64][4] @ VEC_AVX2
@@ -547,7 +547,7 @@ class ConvertVecCopyF32x8Pfx(RewritePattern):
 
         assert len(op.arguments) == 3
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src: [f32][8] @ VEC_AVX2
@@ -644,7 +644,7 @@ class ConvertVecCopyF64x4Pfx(RewritePattern):
 
         assert len(op.arguments) == 3
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src: [f64][4] @ VEC_AVX2
@@ -743,7 +743,7 @@ class ConvertVecLoadF32x8Pfx(RewritePattern):
 
         assert len(op.arguments) == 3
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src: [f32][8] @ VEC_AVX2
@@ -844,7 +844,7 @@ class ConvertVecLoadF64x4Pfx(RewritePattern):
 
         assert len(op.arguments) == 3
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src: [f64][4] @ VEC_AVX2
@@ -1115,7 +1115,7 @@ class ConvertVecAddF32x8Pfx(RewritePattern):
 
         assert len(op.arguments) == 4
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src1: [f32][8] @ VEC_AVX2
@@ -1229,7 +1229,7 @@ class ConvertVecAddF64x4Pfx(RewritePattern):
 
         assert len(op.arguments) == 4
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src1: [f64][4] @ VEC_AVX2
@@ -1331,7 +1331,7 @@ class ConvertVecBrdcstSclF32x8Pfx(RewritePattern):
 
         assert len(op.arguments) == 3
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src: f32 @ DRAM
@@ -1425,7 +1425,7 @@ class ConvertVecBrdcstSclF64x4Pfx(RewritePattern):
 
         assert len(op.arguments) == 3
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src: f64 @ DRAM
@@ -1549,7 +1549,7 @@ class ConvertVecFmadd2F32x8Pfx(RewritePattern):
 
         assert len(op.arguments) == 5
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src1: [f32][8] @ VEC_AVX2
@@ -1699,7 +1699,7 @@ class ConvertVecFmadd2F64x4Pfx(RewritePattern):
 
         assert len(op.arguments) == 5
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src1: [f64][4] @ VEC_AVX2
@@ -1821,7 +1821,7 @@ class ConvertVecStoreF32x8Pfx(RewritePattern):
 
         assert len(op.arguments) == 3
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f32][8] @ DRAM
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src: [f32][8] @ VEC_AVX2
@@ -1918,7 +1918,7 @@ class ConvertVecStoreF64x4Pfx(RewritePattern):
 
         assert len(op.arguments) == 3
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f64][4] @ DRAM
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src: [f64][4] @ VEC_AVX2
@@ -2043,7 +2043,7 @@ class ConvertVecFmaddRedF32x8Pfx(RewritePattern):
 
         assert len(op.arguments) == 4
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src1: [f32][8] @ VEC_AVX2
@@ -2192,7 +2192,7 @@ class ConvertVecFmaddRedF64x4Pfx(RewritePattern):
 
         assert len(op.arguments) == 4
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src1: [f64][4] @ VEC_AVX2
@@ -2346,7 +2346,7 @@ class ConvertVecFmadd1F32x8Pfx(RewritePattern):
 
         assert len(op.arguments) == 5
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src1: [f32][8] @ VEC_AVX2
@@ -2500,7 +2500,7 @@ class ConvertVecFmadd1F64x4Pfx(RewritePattern):
 
         assert len(op.arguments) == 5
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src1: [f64][4] @ VEC_AVX2
@@ -2635,7 +2635,7 @@ class ConvertVecMulF32x8Pfx(RewritePattern):
 
         assert len(op.arguments) == 4
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src1: [f32][8] @ VEC_AVX2
@@ -2755,7 +2755,7 @@ class ConvertVecMulF64x4Pfx(RewritePattern):
 
         assert len(op.arguments) == 4
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src1: [f64][4] @ VEC_AVX2
@@ -2871,7 +2871,7 @@ class ConvertVecNegF32x8Pfx(RewritePattern):
 
         assert len(op.arguments) == 3
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src: [f32][8] @ VEC_AVX2
@@ -2992,7 +2992,7 @@ class ConvertVecNegF64x4Pfx(RewritePattern):
 
         assert len(op.arguments) == 3
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
         # src: [f64][4] @ VEC_AVX2
@@ -3063,7 +3063,7 @@ class ConvertVecZeroF32x8Pfx(RewritePattern):
 
         assert len(op.arguments) == 2
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
 
@@ -3119,7 +3119,7 @@ class ConvertVecZeroF64x4Pfx(RewritePattern):
 
         assert len(op.arguments) == 2
         # m: size
-        assert op.arguments[0].type == i32, op.arguments[0].type
+        assert op.arguments[0].type == IndexType(), op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
         assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
 

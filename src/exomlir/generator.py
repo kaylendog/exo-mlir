@@ -47,6 +47,7 @@ from xdsl.dialects.builtin import (
     i8,
     i16,
     i32,
+    i64,
 )
 from xdsl.dialects.func import CallOp, FuncOp, ReturnOp
 from xdsl.dialects.memref import (
@@ -54,7 +55,6 @@ from xdsl.dialects.memref import (
 )
 from xdsl.dialects.scf import ForOp, IfOp, YieldOp
 from xdsl.dialects.test import TestOp
-from xdsl.dialects.utils import get_dynamic_index_list
 from xdsl.ir import Attribute, Block, BlockArgument, OpResult, Region, SSAValue
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.scoped_dict import ScopedDict
@@ -315,18 +315,30 @@ class IRGenerator:
             raise IRGeneratorError(f"Unknown statement {stmt}")
 
     def generate_assign_stmt(self, assign):
-        idx = [self.cast_to_index(i) for i in self.generate_expr_list(assign.idx)]
+        idx = self.generate_expr_list(assign.idx)
         value = self.generate_expr(assign.rhs)
         memref = self.get_sym(assign.name)
 
-        self.builder.insert(AssignOp(memref, idx, value))
+        exo_type = self.get_sym_exo_type(assign.name)
+        if isinstance(exo_type, T.Tensor):
+            sizes = self.get_dynamic_shape(exo_type)
+        else:
+            sizes = []
+
+        self.builder.insert(AssignOp(value, memref, idx, sizes))
 
     def generate_reduce_stmt(self, reduce):
         memref = self.get_sym(reduce.name)
-        idx = [self.cast_to_index(i) for i in self.generate_expr_list(reduce.idx)]
+        idx = self.generate_expr_list(reduce.idx)
         value = self.generate_expr(reduce.rhs)
 
-        self.builder.insert(ReduceOp(memref, idx, value))
+        exo_type = self.get_sym_exo_type(reduce.name)
+        if isinstance(exo_type, T.Tensor):
+            sizes = self.get_dynamic_shape(exo_type)
+        else:
+            sizes = []
+
+        self.builder.insert(ReduceOp(value, memref, idx, sizes))
 
     def generate_write_config_stmt(self, write_config):
         # rhs = self.generate_expr(write_config.rhs)
@@ -356,10 +368,8 @@ class IRGenerator:
 
     def generate_for_stmt(self, for_stmt):
         lo = self.generate_expr(for_stmt.lo)
-        lo = self.cast_to_index(lo)
         hi = self.generate_expr(for_stmt.hi)
-        hi = self.cast_to_index(hi)
-        step = ConstantOp(IntegerAttr(1, IndexType()))
+        step = ConstantOp(IntegerAttr(1, i64))
         self.builder.insert(step)
 
         parent_builder = self.builder
@@ -368,13 +378,14 @@ class IRGenerator:
         # construct loop block
         loop_block = Block(
             # TODO: this should be inferred from lo and hi
-            arg_types=[IndexType()],
+            arg_types=[i64],
         )
         self.builder = Builder(insertion_point=InsertPoint.at_end(loop_block))
         self.symbol_table = ScopedDict(parent_scope)
 
         # add loop variable to symbol table
         self.declare_arg(for_stmt.iter, loop_block.args[0])
+        self.declare_sym_exo_type(for_stmt.iter, T.Index)
 
         # generate loop body
         self.generate_stmt_list(for_stmt.body)
@@ -447,12 +458,17 @@ class IRGenerator:
 
     def generate_read_expr(self, read):
         idx = self.generate_expr_list(read.idx)
-        idx = [self.cast_to_index(i) for i in idx]
 
         operand = self.get_sym(read.name)
 
+        exo_type = self.get_sym_exo_type(read.name)
+        if isinstance(exo_type, T.Tensor):
+            sizes = self.get_dynamic_shape(exo_type)
+        else:
+            sizes = []
+
         self.builder.insert(
-            op := ReadOp(operand, idx, result_type=self.get_type(read.type))
+            op := ReadOp(operand, idx, sizes, result_type=self.get_type(read.type))
         )
 
         return op.result
@@ -463,7 +479,7 @@ class IRGenerator:
         # construct attribute depending on type
         if type in [f16, f32, f64]:
             attr = FloatAttr(const.val, type)
-        elif type in [i8, i16, i32]:
+        elif type in [i8, i16, i32, i64]:
             attr = IntegerAttr(IntAttr(const.val), type)
         elif type == i1:
             attr = BoolAttr(const.val, i1)
@@ -484,7 +500,7 @@ class IRGenerator:
         if self.get_type(usub.type) in [f16, f32, f64]:
             usub = NegfOp(expr)
         # integer case
-        elif self.get_type(usub.type) in [i8, i16, i32]:
+        elif self.get_type(usub.type) in [i8, i16, i32, i64]:
             zero = ConstantOp(IntegerAttr(0, self.get_type(usub.type)))
             usub = SubiOp(zero.result, expr, result_type=self.get_type(usub.type))
             self.builder.insert(zero)
@@ -503,7 +519,7 @@ class IRGenerator:
 
         if type in [f16, f32, f64]:
             return self.generate_binop_expr_float(binop)
-        elif type in [i8, i16, i32]:
+        elif type in [i8, i16, i32, i64]:
             return self.generate_binop_expr_int(binop)
         elif type == i1:
             return self.generate_binop_expr_cmp(binop)
@@ -603,25 +619,8 @@ class IRGenerator:
         input = self.get_sym(window.name)
         dest_type = self.get_type(window.type.as_tensor, input.type.memory_space)
 
-        (input_shape, dynamic_input_shape) = self.get_shape(
-            self.get_sym_exo_type(window.name)
-        )
-        (output_shape, dynamic_output_shape) = self.get_shape(window.type.as_tensor)
-
-        input_shape = [i.data for i in input_shape]
-        output_shape = [i.data for i in output_shape]
-
-        input_sizes = get_dynamic_index_list(input_shape, dynamic_input_shape, -1)
-        output_sizes = get_dynamic_index_list(output_shape, dynamic_output_shape, -1)
-
-        output_sizes = []
-        dynamic_idx = 0
-        for i, dim in enumerate(output_shape):
-            if dim == -1:
-                output_sizes.append(dynamic_output_shape[dynamic_idx])
-                dynamic_idx += 1
-            else:
-                output_sizes.append(dim)
+        input_sizes = self.get_dynamic_shape(self.get_sym_exo_type(window.name))
+        output_sizes = self.get_dynamic_shape(window.type.as_tensor)
 
         self.builder.insert(
             op := WindowOp(
@@ -633,14 +632,14 @@ class IRGenerator:
 
     def generate_w_access(self, w_access):
         if isinstance(w_access, LoopIR.Point):
-            return self.cast_to_index(self.generate_expr(w_access.pt))
+            return self.generate_expr(w_access.pt)
 
         assert isinstance(w_access, LoopIR.Interval), (
             f"Unknown window access type '{type(w_access)}' for '{w_access}'"
         )
 
-        lo = self.cast_to_index(self.generate_expr(w_access.lo))
-        hi = self.cast_to_index(self.generate_expr(w_access.hi))
+        lo = self.generate_expr(w_access.lo)
+        hi = self.generate_expr(w_access.hi)
 
         self.builder.insert(op := IntervalOp(lo, hi))
 
@@ -678,13 +677,10 @@ class IRGenerator:
             return i8
         elif isinstance(t, T.UINT16):
             return i16
-        elif (
-            isinstance(t, T.INT32)
-            or isinstance(t, T.Int)
-            or isinstance(t, T.Index)
-            or isinstance(t, T.Size)
-        ):
+        elif isinstance(t, T.INT32):
             return i32
+        elif isinstance(t, T.Index) or isinstance(t, T.Size) or isinstance(t, T.Int):
+            return i64
         elif isinstance(t, T.Bool):
             return i1
         elif isinstance(t, T.Tensor):
@@ -694,7 +690,7 @@ class IRGenerator:
                 raise IRGeneratorError(f"Unknown tensor inner type '{inner}'")
 
             # compute shape and strides
-            (shape, _) = self.get_shape(t)
+            shape = self.get_static_shape(t)
 
             if inner == f16:
                 return MemRefTypeF16(f16, shape, NoneAttr(), mem_space)
@@ -731,11 +727,45 @@ class IRGenerator:
                 return IntAttr(-1)
             elif isinstance(expr, LoopIR.BinOp):
                 if self.symbol_table is not None:
-                    dynamic_shapes.append(
-                        self.cast_to_index(self.generate_binop_expr(expr))
-                    )
+                    dynamic_shapes.append(self.generate_binop_expr(expr))
                 return IntAttr(-1)
             else:
                 raise IRGeneratorError(f"Invalid shape argument {expr}")
 
         return ([attr_from_expr(expr) for expr in type.shape()], dynamic_shapes)
+
+    def get_static_shape(self, type) -> list[int]:
+        """
+        Get the shape of a tensor type as a list of integer attributes.
+        """
+        assert isinstance(type, T.Tensor)
+
+        def attr_from_expr(expr):
+            if isinstance(expr, LoopIR.Const):
+                return expr.val
+            elif isinstance(expr, LoopIR.Read):
+                return -1
+            elif isinstance(expr, LoopIR.BinOp):
+                return -1
+            else:
+                raise IRGeneratorError(f"Invalid shape argument {expr}")
+
+        return [attr_from_expr(expr) for expr in type.shape()]
+
+    def get_dynamic_shape(self, type) -> list[SSAValue[Attribute] | int]:
+        """
+        Get the shape of a tensor type as a list of integer attributes.
+        """
+        assert isinstance(type, T.Tensor)
+
+        def attr_from_expr(expr):
+            if isinstance(expr, LoopIR.Const):
+                return expr.val
+            elif isinstance(expr, LoopIR.Read):
+                return self.get_sym(expr.name)
+            elif isinstance(expr, LoopIR.BinOp):
+                return self.generate_binop_expr(expr)
+            else:
+                raise IRGeneratorError(f"Invalid shape argument {expr}")
+
+        return [attr_from_expr(expr) for expr in type.shape()]

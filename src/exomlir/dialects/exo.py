@@ -100,22 +100,32 @@ class FreeOp(IRDLOperation):
 class AssignOp(IRDLOperation):
     name = "exo.assign"
 
-    input = operand_def()
-    indices = var_operand_def(IndexType)
     value = operand_def()
+    input = operand_def()
+    indices = var_operand_def(i64)
+    sizes = var_operand_def(i64)
+    static_sizes = prop_def(DenseArrayBase)
 
-    assembly_format = (
-        "$input `[` $indices `]` `,` $value attr-dict `:` type($input) `,` type($value)"
-    )
+    assembly_format = "$value `,` $input `[` $indices `]` `,` `sizes` `:` `[` $sizes `]` `,` attr-dict `:` type($value) `,` type($input)"
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
 
     def __init__(
         self,
+        value: SSAValue | Operation,
         input: SSAValue | Operation,
         indices: Sequence[SSAValue | Operation],
-        value: SSAValue | Operation,
+        sizes: Sequence[SSAValue | int],
     ) -> None:
+        static_sizes, dyn_sizes = split_dynamic_index_list(
+            sizes, memref.SubviewOp.DYNAMIC_INDEX
+        )
         super().__init__(
-            operands=[SSAValue.get(input), indices, value], result_types=[]
+            operands=[value, SSAValue.get(input), indices, dyn_sizes],
+            result_types=[],
+            properties={
+                "static_sizes": DenseArrayBase.create_dense_int(i64, static_sizes)
+            },
         )
 
 
@@ -123,22 +133,33 @@ class AssignOp(IRDLOperation):
 class ReduceOp(IRDLOperation):
     name = "exo.reduce"
 
-    input = operand_def()
-    indices = var_operand_def(IndexType)
     value = operand_def()
+    input = operand_def()
+    indices = var_operand_def(i64)
+    sizes = var_operand_def(i64)
+    static_sizes = prop_def(DenseArrayBase)
 
-    assembly_format = (
-        "$input `[` $indices `]` `,` $value attr-dict `:` type($input) `,` type($value)"
-    )
+    assembly_format = "$value `,` $input `[` $indices `]` `,` `sizes` `:` `[` $sizes `]` `,` attr-dict `:` type($value) `,` type($input)"
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
 
     def __init__(
         self,
+        value: SSAValue | Operation,
         input: SSAValue | Operation,
         indices: Sequence[SSAValue | Operation],
-        value: SSAValue | Operation,
+        sizes: Sequence[SSAValue | int],
     ) -> None:
+        static_sizes, dyn_sizes = split_dynamic_index_list(
+            sizes, memref.SubviewOp.DYNAMIC_INDEX
+        )
+
         super().__init__(
-            operands=[SSAValue.get(input), indices, value], result_types=[]
+            operands=[value, SSAValue.get(input), indices, dyn_sizes],
+            result_types=[],
+            properties={
+                "static_sizes": DenseArrayBase.create_dense_int(i64, static_sizes)
+            },
         )
 
 
@@ -147,17 +168,33 @@ class ReadOp(IRDLOperation):
     name = "exo.read"
 
     input = operand_def()
-    indices = var_operand_def(IndexType)
+    indices = var_operand_def(i64)
+    sizes = var_operand_def(i64)
+    static_sizes = prop_def(DenseArrayBase)
     result = result_def()
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
 
     def __init__(
         self,
         input: SSAValue | Operation,
         indices: Sequence[SSAValue | Operation],
+        sizes: Sequence[SSAValue | int],
         result_type: Attribute,
     ) -> None:
+        static_sizes, dyn_sizes = split_dynamic_index_list(
+            sizes, memref.SubviewOp.DYNAMIC_INDEX
+        )
         super().__init__(
-            operands=[SSAValue.get(input), indices], result_types=[result_type]
+            operands=[
+                SSAValue.get(input),
+                indices,
+                dyn_sizes,
+            ],
+            result_types=[result_type],
+            properties={
+                "static_sizes": DenseArrayBase.create_dense_int(i64, static_sizes)
+            },
         )
 
     def verify_(self):

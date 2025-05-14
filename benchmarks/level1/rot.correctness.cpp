@@ -36,6 +36,12 @@ int main() {
 	float precision = 1e-6f;
 
 	for (int i = 0; i < n; ++i) {
+		// check nan
+		if (std::isnan(exomlir_x[i]) || std::isnan(exomlir_y[i])) {
+			std::cerr << "NaN detected in input data" << std::endl;
+			return 1;
+		}
+
 		if (std::abs(x[i] - exomlir_x[i]) > precision) {
 			std::cerr << "Expected: " << x[i] << ", got: " << exomlir_x[i] << std::endl;
 			return 1;

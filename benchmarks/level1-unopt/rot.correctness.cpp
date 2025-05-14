@@ -38,15 +38,13 @@ int main() {
 	for (int i = 0; i < n; ++i) {
 		if (std::abs(x[i] - exomlir_x[i]) > precision) {
 			std::cerr << "Expected: " << x[i] << ", got: " << exomlir_x[i] << std::endl;
-			return 1;
+			// return 1;
 		}
 		if (std::abs(y[i] - exomlir_y[i]) > precision) {
 			std::cerr << "Expected: " << y[i] << ", got: " << exomlir_y[i] << std::endl;
-			return 1;
+			// return 1;
 		}
-
-		std::cout << "exocc: " << x[i] << ", exomlir: " << exomlir_x[i] << std::endl;
 	}
 
-	return 0;
+	return 1;
 }
