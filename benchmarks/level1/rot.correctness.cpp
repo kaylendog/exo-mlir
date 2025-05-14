@@ -8,7 +8,7 @@
 extern "C" void exomlir_exo_srot_stride_1(int32_t n, const float *x, const float *y, const float *c, const float *s);
 
 int main() {
-	int_fast32_t n = 1 << 24;
+	int_fast32_t n = 2048;
 	std::vector<float> x(n);
 	std::vector<float> y(n);
 

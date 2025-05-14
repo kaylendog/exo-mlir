@@ -6,17 +6,17 @@ from exo.libs.memories import *
 
 
 @proc
-def gemm(
+def gemm_lt_128(
     N: size,
     M: size,
     K: size,
-    out: f32[N, K] @ DRAM,
-    a: f32[N, M] @ DRAM,
-    b: f32[M, K] @ DRAM,
+    out: f32[128, 128] @ DRAM,
+    a: f32[128, 128] @ DRAM,
+    b: f32[128, 128] @ DRAM,
 ):
-    assert N <= 1 << 24
-    assert M <= 1 << 24
-    assert K <= 1 << 24
+    assert N <= 128
+    assert M <= 128
+    assert K <= 128
 
     for i in seq(0, N):
         for j in seq(0, K):

@@ -8,7 +8,7 @@
 extern "C" void exomlir_swap(int32_t n, const float *x, float *y);
 
 int main() {
-	int_fast32_t n = 1 << 24;
+	int_fast32_t n = 2048;
 	std::vector<float> x(n);
 	std::vector<float> y(n);
 

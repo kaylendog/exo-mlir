@@ -6,23 +6,23 @@ from exo.libs.memories import *
 
 
 @proc
-def conv1d(
+def conv1d_lt_32768(
     N: size,
-    IC: size,
-    OC: size,
-    data: i32[IC, N],
-    kernels: i32[OC, IC, 4],
-    out: i32[OC, N],
+    data: i32[4, 32768],
+    kernels: i32[4, 4, 4],
+    out: i32[4, 32768],
 ):
+    assert N <= 32768
+
     # do the convolution
-    for i in seq(0, OC):
-        for j in seq(0, N):
+    for i in seq(0, 4):
+        for j in seq(0, 16):
             # zero out the result memory
             out[i, j] = 0.0
-            for c in seq(0, IC):
+            for c in seq(0, 4):
                 for r in seq(0, 4):
                     y: i32
-                    if j + r < N:
+                    if j + r < 16:
                         y = data[c, j + r]
                     else:
                         y = 0

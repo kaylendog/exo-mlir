@@ -3,6 +3,11 @@ import subprocess
 
 configfile: "config.yaml"
 
+
+SCALAR_PROCS=[
+    "conv1d",
+    "gemm",
+]
 LEVEL_1_PROCS = [
     "asum",
     "axpy",
@@ -88,14 +93,14 @@ rule exomlir_compile_opt:
         opt -O3 -mtriple=x86_64-unknown-linux-gnu build/exomlir/{wildcards.level}/{wildcards.proc}.ll > build/exomlir/{wildcards.level}/{wildcards.proc}.bc
         """
 
-rule exomlir_compile_clang:
+rule exomlir_compile_llc:
     input:
         "build/exomlir{level}/{proc}.bc",
     output:
         "build/exomlir{level}/{proc}.o",
     shell:
         """
-        clang -O3 -mavx -mfma -mavx2 -c build/exomlir/{wildcards.level}/{wildcards.proc}.bc -o build/exomlir/{wildcards.level}/{wildcards.proc}.o --save-temps=obj
+        llc -O3 -march=x86-64 -mcpu=btver2 -filetype=obj build/exomlir/{wildcards.level}/{wildcards.proc}.bc -o build/exomlir/{wildcards.level}/{wildcards.proc}.o
         """
 
 # ---- CORRECTNESS ----
@@ -153,18 +158,18 @@ rule benchmark_compile_harnesses:
 rule all:
     input:
         # correctness
-        # expand(
-        #     "build/correctness/level1/{proc}.out",
-        #     proc=LEVEL_1_PROCS
-        # ),
+        expand(
+            "build/correctness/scalar/{proc}.out",
+            proc=SCALAR_PROCS
+        ),
+        expand(
+            "build/correctness/level1/{proc}.out",
+            proc=LEVEL_1_PROCS
+        ),
         expand(
             "build/correctness/level1-unopt/{proc}.out",
             proc=LEVEL_1_PROCS
         ),
-        # expand(
-        #     "build/correctness/level2/{proc}.out",
-        #     proc=LEVEL_2_PROCS
-        # ),
 
 # rule benchmark_count_instrs:
 #     input:

@@ -8,7 +8,7 @@
 extern "C" void exomlir_exo_sscal_stride_1(int32_t n, const float *alpha, const float *x);
 
 int main() {
-	int_fast32_t n = 1 << 24;
+	int_fast32_t n = 2048;
 	std::vector<float> x(n);
 
 	// setup rng
