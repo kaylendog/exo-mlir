@@ -1,17 +1,11 @@
 from collections.abc import Sequence
-from typing import Annotated, ClassVar, TypeAlias
+from typing import ClassVar, TypeAlias
 
-from xdsl.dialects import arith, memref
+from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
-    I32,
     DenseArrayBase,
     FlatSymbolRefAttrConstr,
-    Float16Type,
-    Float32Type,
-    Float64Type,
-    IntegerType,
     MemRefType,
-    Signedness,
     StringAttr,
     SymbolRefAttr,
     TupleType,
@@ -21,7 +15,6 @@ from xdsl.dialects.utils import split_dynamic_index_list
 from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyAttr,
-    AnyOf,
     Attribute,
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -34,21 +27,6 @@ from xdsl.irdl import (
     var_operand_def,
 )
 from xdsl.printer import Printer
-
-SizeType: TypeAlias = arith.IndexType
-StrideType: TypeAlias = arith.IndexType
-IndexType: TypeAlias = arith.IndexType
-
-u8 = IntegerType(8, Signedness.UNSIGNED)
-u16 = IntegerType(16, Signedness.UNSIGNED)
-
-U8 = Annotated[IntegerType, u8]
-U16 = Annotated[IntegerType, u16]
-
-NumType: TypeAlias = AnyOf[Float16Type | Float32Type | Float64Type | U8 | U16 | I32]
-IntType: TypeAlias = AnyOf[U8 | U16 | I32]
-
-TensorType: TypeAlias = MemRefType[NumType]
 
 IntervalType: TypeAlias = TupleType
 
@@ -237,8 +215,8 @@ class ReadOp(IRDLOperation):
 class IntervalOp(IRDLOperation):
     name = "exo.interval"
 
-    start = operand_def(IndexType)
-    end = operand_def(IndexType)
+    start = operand_def(i64)
+    end = operand_def(i64)
     result = result_def(IntervalType)
 
     assembly_format = "$start `,` $end attr-dict `:` type($result)"

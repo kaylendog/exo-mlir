@@ -18,7 +18,7 @@ def conv1d_lt_32768(
     for i in seq(0, 4):
         for j in seq(0, 16):
             # zero out the result memory
-            out[i, j] = 0.0
+            out[i, j] = 0
             for c in seq(0, 4):
                 for r in seq(0, 4):
                     y: i32

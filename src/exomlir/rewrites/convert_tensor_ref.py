@@ -1,3 +1,5 @@
+from typing import Sequence
+
 from xdsl.context import Context
 from xdsl.dialects import arith, memref
 from xdsl.dialects.builtin import (
@@ -12,9 +14,10 @@ from xdsl.dialects.builtin import (
     f64,
     f80,
     f128,
+    i64,
 )
-from xdsl.dialects.utils import get_dynamic_index_list
-from xdsl.ir import Operation, OpResult
+from xdsl.dialects.utils import get_dynamic_index_list, split_dynamic_index_list
+from xdsl.ir import Attribute, Operation, OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -34,7 +37,15 @@ class ConvertReadOp(RewritePattern):
         if len(op.indices) < 1:
             return
 
-        rewriter.replace_matched_op(memref.LoadOp.get(op.input, op.indices))
+        ops = [arith.IndexCastOp(idx, IndexType()) for idx in op.indices]
+        idx = [op.result for op in ops]
+
+        rewriter.replace_matched_op(
+            (
+                *ops,
+                memref.LoadOp.get(op.input, idx),
+            )
+        )
 
 
 class ConvertAssignOp(RewritePattern):
@@ -46,6 +57,9 @@ class ConvertAssignOp(RewritePattern):
 
         assert isinstance(op.input.type, MemRefType)
 
+        ops = [arith.IndexCastOp(idx, IndexType()) for idx in op.indices]
+        idx = [op.result for op in ops]
+
         # if the value is a scalar memref, we need to load
         if isinstance(op.value.type, MemRefType):
             assert op.value.type.get_shape() == (1,), (
@@ -54,13 +68,14 @@ class ConvertAssignOp(RewritePattern):
 
             return rewriter.replace_matched_op(
                 (
+                    *ops,
                     zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                     load_op := memref.LoadOp.get(op.value, [zero_op.result]),
-                    memref.StoreOp.get(load_op.res, op.input, op.indices),
+                    memref.StoreOp.get(load_op.res, op.input, idx),
                 )
             )
 
-        rewriter.replace_matched_op(memref.StoreOp.get(op.value, op.input, op.indices))
+        rewriter.replace_matched_op((*ops, memref.StoreOp.get(op.value, op.input, idx)))
 
 
 class ConvertReduceOp(RewritePattern):
@@ -72,7 +87,8 @@ class ConvertReduceOp(RewritePattern):
 
         assert isinstance(op.input.type, MemRefType)
 
-        ops = []
+        ops = [arith.IndexCastOp(idx, IndexType()) for idx in op.indices]
+        idx = [op.result for op in ops]
         value = op.value
 
         # if the value is a scalar memref, we need to load
@@ -87,7 +103,7 @@ class ConvertReduceOp(RewritePattern):
             )
             value = load_op.res
 
-        load_op = memref.LoadOp.get(op.input, op.indices)
+        load_op = memref.LoadOp.get(op.input, idx)
 
         # switch on value type
         if value.type in [f16, f32, f64, f80, f128]:
@@ -110,89 +126,156 @@ class ConvertReduceOp(RewritePattern):
                 *ops,
                 load_op,
                 add_op,
-                memref.StoreOp.get(add_op.result, op.input, op.indices),
+                memref.StoreOp.get(add_op.result, op.input, idx),
             ),
         )
+
+
+def compute_memref_strides(
+    sizes: list[SSAValue[Attribute] | int],
+) -> tuple[list[Operation], list[SSAValue[Attribute] | int]]:
+    ops = []
+    strides: list[SSAValue[Attribute] | int] = [1]
+
+    for size in reversed(sizes):
+        last_stride = strides[0]
+
+        # if both static, we can compute statically
+        if isinstance(last_stride, int) and isinstance(size, int):
+            strides.insert(0, last_stride * size)
+            continue
+
+        # wrap static values in constant ops
+        if isinstance(last_stride, int):
+            last_stride = arith.ConstantOp(IntegerAttr(last_stride, i64)).result
+            ops.append(last_stride.op)
+        if isinstance(size, int):
+            size = arith.ConstantOp(IntegerAttr(size, i64)).result
+            ops.append(size.op)
+
+        # multiply
+        mul_op = arith.MuliOp(operand1=last_stride, operand2=size)
+        ops.append(mul_op)
+        strides.insert(0, mul_op.result)
+
+    return ops, strides
+
+
+def compute_memref_offsets(
+    indices: list[SSAValue[Attribute]],
+    strides: list[SSAValue[Attribute] | int],
+) -> tuple[list[Operation], list[SSAValue[Attribute] | int]]:
+    ops = []
+    offsets: list[SSAValue[Attribute]] = []
+
+    for idx, stride in zip(indices, strides):
+        if isinstance(stride, int):
+            stride = arith.ConstantOp(IntegerAttr(stride, i64)).result
+            ops.append(stride.op)
+
+        # multiply
+        if isinstance(idx.owner, exo.IntervalOp):
+            idx = idx.owner.start
+
+        mul_op = arith.MuliOp(operand1=idx, operand2=stride)
+        ops.append(mul_op)
+        offsets.append(mul_op.result)
+
+    return ops, offsets
+
+
+def compute_memref_sizes(
+    sizes: list[SSAValue[Attribute] | int],
+) -> tuple[list[Operation], list[SSAValue[Attribute] | int]]:
+    ops = []
+    sizes: list[SSAValue[Attribute] | int] = []
+
+    for size in sizes:
+        if isinstance(size, int):
+            size = arith.ConstantOp(IntegerAttr(size, i64)).result
+            ops.append(size.op)
+
+        # multiply
+        mul_op = arith.MuliOp(operand1=size, operand2=size)
+        ops.append(mul_op)
+        sizes.append(mul_op.result)
+
+    return ops, sizes
+
+
+def convert_all_to_index(
+    input: Sequence[SSAValue[Attribute] | int],
+) -> tuple[list[Operation], list[SSAValue[Attribute]]]:
+    ops = []
+    output_dyn_values = []
+
+    static_values, dyn_values = split_dynamic_index_list(
+        input, memref.SubviewOp.DYNAMIC_INDEX
+    )
+
+    for value in dyn_values:
+        ops.append(cast_op := arith.IndexCastOp(value, IndexType()))
+        output_dyn_values.append(cast_op.result)
+
+    return (
+        ops,
+        get_dynamic_index_list(
+            static_values,
+            output_dyn_values,
+            memref.SubviewOp.DYNAMIC_INDEX,
+        ),
+    )
 
 
 class ConvertWindowOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: exo.WindowOp, rewriter: PatternRewriter):
-        input_sizes = op.static_input_sizes.get_values()
-        output_sizes = op.static_output_sizes.get_values()
+        assert isinstance(op.input.type, MemRefType)
+        assert isinstance(op.result.type, MemRefType)
 
-        # compute sizes
-        sizes = [1] * (len(input_sizes) - len(output_sizes)) + get_dynamic_index_list(
-            op.static_output_sizes.get_values(),
-            op.output_sizes,
-            memref.SubviewOp.DYNAMIC_INDEX,
+        input_dims = op.input.type.get_num_dims()
+        output_dims = op.result.type.get_num_dims()
+
+        stride_ops, strides = compute_memref_strides(
+            get_dynamic_index_list(
+                op.static_input_sizes.get_values(),
+                op.input_sizes,
+                memref.SubviewOp.DYNAMIC_INDEX,
+            )
         )
+        offset_ops, offsets = compute_memref_offsets(op.indices, strides)
 
-        # compute indices
-        indices = []
-        for operand in op.indices:
-            if isinstance(operand, OpResult) and isinstance(operand.op, exo.IntervalOp):
-                indices.append(operand.op.start)
-            else:
-                indices.append(operand)
-
-        # compute strides - these should be the same as the input strides, which we calculate using
-        # strides[0] = 1
-        # strides[i] = strides[i - 1] * sizes[i]
-        strides = []
-        dynamic_stride = False
-        dynamic_idx = 0
-        stride = 1
-        ops: list[Operation] = []
-
-        for dim in reversed(input_sizes):
-            strides.insert(0, stride)
-
-            if dynamic_stride:
-                if dim == memref.SubviewOp.DYNAMIC_INDEX:
-                    # if we encounter another dynamic index, we need to multiply the stride by the
-                    # dynamic size
-                    ops.append(
-                        arith.MuliOp(
-                            operand1=ops[-1].results[0],
-                            operand2=op.input_sizes[dynamic_idx],
-                        )
-                    )
-                    dynamic_idx += 1
-                else:
-                    # otherwise we can multiply the stride by the static size
-                    ops.append(
-                        const_op := arith.ConstantOp(IntegerAttr(dim, IndexType())),
-                    )
-                    ops.append(
-                        arith.MuliOp(
-                            operand1=ops[-1].results[0],
-                            operand2=const_op.result,
-                        ),
-                    )
-
-                continue
-
-            # when we encounter the first dynamic index, we need to start using the dynamic stride
-            if dim == memref.SubviewOp.DYNAMIC_INDEX:
-                dynamic_stride = True
-                ops.append(arith.ConstantOp(IntegerAttr(stride, IndexType())))
-            # otherwise, we can continue to compute the stride statically
-            else:
-                stride *= dim
+        # convert all to index
+        stride_idx_ops, strides = convert_all_to_index(strides)
+        offset_idx_ops, offsets = convert_all_to_index(offsets)
+        size_idx_ops, sizes = convert_all_to_index(
+            get_dynamic_index_list(
+                op.static_output_sizes.get_values(),
+                op.output_sizes,
+                memref.SubviewOp.DYNAMIC_INDEX,
+            )
+        )
 
         rewriter.replace_matched_op(
             (
+                *stride_ops,
+                *offset_ops,
+                *stride_idx_ops,
+                *offset_idx_ops,
+                *size_idx_ops,
                 memref.SubviewOp.get(
                     op.input,
-                    indices,
+                    offsets,
                     sizes,
                     strides,
                     MemRefType(
                         op.result.type.element_type,
                         op.result.type.shape,
                         StridedLayoutAttr(
-                            strides[len(input_sizes) - len(output_sizes) :], NoneAttr()
+                            split_dynamic_index_list(strides, -1)[0][
+                                input_dims - output_dims + 1 :
+                            ],
+                            NoneAttr(),
                         ),
                         op.result.type.memory_space,
                     ),

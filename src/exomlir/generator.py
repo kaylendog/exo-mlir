@@ -591,7 +591,7 @@ class IRGenerator:
             else:
                 raise IRGeneratorError(f"Unknown boolean operator '{binop.op}'")
         # cmpi
-        elif lhs.type in [i8, i16, i32]:
+        elif lhs.type in [i8, i16, i32, i64]:
             op = INTEGER_CMP_TABLE[binop.op]
             if op is None:
                 raise IRGeneratorError(

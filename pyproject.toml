@@ -34,7 +34,7 @@ dev = [
 package = true
 
 [tool.uv.sources]
-xdsl = { git = "https://github.com/kaylendog/xdsl", rev = "fc0b93e9126a585d522f78f7092afcc161fa588a" }
+xdsl = { git = "https://github.com/kaylendog/xdsl", rev = "5e799fc5062d392338f9aa9c40e9e1277286cd97" }
 exoblas = { workspace = true }
 
 [tool.uv.workspace]
