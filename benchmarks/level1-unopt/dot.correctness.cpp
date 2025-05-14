@@ -3,9 +3,9 @@
 #include <random>
 #include <vector>
 
-#include <exocc/level1/dot.h>
+#include <exocc/level1-unopt/dot.h>
 
-extern "C" void exomlir_exo_sdot_stride_1(int32_t n, const float *x, const float *y, float *result);
+extern "C" void exomlir_dot(int32_t n, const float *x, const float *y, float *result);
 
 int main() {
 	int_fast32_t n = 1 << 24;
@@ -30,8 +30,8 @@ int main() {
 	exo_win_1f32c exocc_x = {x.data(), {1}};
 	exo_win_1f32c exocc_y = {y.data(), {1}};
 
-	exo_sdot_stride_1(nullptr, n, exocc_x, exocc_y, &result_exocc);
-	exomlir_exo_sdot_stride_1(n, x.data(), y.data(), &result_exomlir);
+	dot(nullptr, n, exocc_x, exocc_y, &result_exocc);
+	exomlir_dot(n, x.data(), y.data(), &result_exomlir);
 
 	float precision = 1e-6f;
 

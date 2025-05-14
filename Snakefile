@@ -78,14 +78,24 @@ rule exomlir_compile_mlirtranslate:
         mlir-translate -mlir-to-llvmir build/exomlir/{wildcards.level}/{wildcards.proc}.lowered.mlir > build/exomlir/{wildcards.level}/{wildcards.proc}.ll
         """
 
+rule exomlir_compile_opt:
+    input:
+        "build/exomlir/{level}/{proc}.ll",
+    output:
+        "build/exomlir/{level}/{proc}.bc",
+    shell:
+        """
+        opt -O3 -mtriple=x86_64-unknown-linux-gnu build/exomlir/{wildcards.level}/{wildcards.proc}.ll > build/exomlir/{wildcards.level}/{wildcards.proc}.bc
+        """
+
 rule exomlir_compile_clang:
     input:
-        "build/exomlir{level}/{proc}.ll",
+        "build/exomlir{level}/{proc}.bc",
     output:
         "build/exomlir{level}/{proc}.o",
     shell:
         """
-        clang -O3 -mavx -mfma -mavx2 -c build/exomlir/{wildcards.level}/{wildcards.proc}.ll -o build/exomlir/{wildcards.level}/{wildcards.proc}.o --save-temps=obj
+        clang -O3 -mavx -mfma -mavx2 -c build/exomlir/{wildcards.level}/{wildcards.proc}.bc -o build/exomlir/{wildcards.level}/{wildcards.proc}.o --save-temps=obj
         """
 
 # ---- CORRECTNESS ----
@@ -143,8 +153,12 @@ rule benchmark_compile_harnesses:
 rule all:
     input:
         # correctness
+        # expand(
+        #     "build/correctness/level1/{proc}.out",
+        #     proc=LEVEL_1_PROCS
+        # ),
         expand(
-            "build/correctness/level1/{proc}.out",
+            "build/correctness/level1-unopt/{proc}.out",
             proc=LEVEL_1_PROCS
         ),
         # expand(

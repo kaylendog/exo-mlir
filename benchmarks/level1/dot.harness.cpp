@@ -3,7 +3,7 @@
 #include <random>
 #include <vector>
 
-#include <exocc/level2/dot.h>
+#include <exocc/level1/dot.h>
 
 extern "C" void exomlir_exo_sdot_stride_1(int32_t n, const float *x, const float *y, float *result);
 

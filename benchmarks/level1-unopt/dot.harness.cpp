@@ -1,13 +1,15 @@
 #include <benchmark/benchmark.h>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <random>
 #include <vector>
 
-#include <exocc/level1/swap.h>
+#include <exocc/level1-unopt/dot.h>
 
-extern "C" void exomlir_exo_sswap_stride_1(int32_t n, const float *x, const float *y);
+extern "C" void exomlir_dot(int32_t n, const float *x, const float *y, float *result);
 
-static void BM_exo_sswap_stride_1(benchmark::State &state) {
+static void BM_dot(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
 	std::vector<float> data_x(n);
 	std::vector<float> data_y(n);
@@ -16,8 +18,9 @@ static void BM_exo_sswap_stride_1(benchmark::State &state) {
 	std::mt19937 rng(0);
 	std::uniform_real_distribution<float> dist(0.0f, 1.0f);
 
-	exo_win_1f32 x = {data_x.data(), {1}};
-	exo_win_1f32 y = {data_y.data(), {1}};
+	float result = 0.0f;
+	exo_win_1f32c x = {data_x.data(), {1}};
+	exo_win_1f32c y = {data_y.data(), {1}};
 
 	for (auto _ : state) {
 		state.PauseTiming();
@@ -30,15 +33,16 @@ static void BM_exo_sswap_stride_1(benchmark::State &state) {
 		}
 		state.ResumeTiming();
 
-		exo_sswap_stride_1(nullptr, n, x, y);
-		benchmark::DoNotOptimize(data_x.data());
-		benchmark::DoNotOptimize(data_y.data());
+		dot(nullptr, n, x, y, &result);
+		benchmark::DoNotOptimize(result);
 	}
+
+	state.SetItemsProcessed(state.iterations() * n);
 }
 
-BENCHMARK(BM_exo_sswap_stride_1)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
+BENCHMARK(BM_dot)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
 
-static void BM_exomlir_exo_sswap_stride_1(benchmark::State &state) {
+static void BM_exomlir_dot(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
 	std::vector<float> data_x(n);
 	std::vector<float> data_y(n);
@@ -46,6 +50,8 @@ static void BM_exomlir_exo_sswap_stride_1(benchmark::State &state) {
 	// setup rng
 	std::mt19937 rng(0);
 	std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+
+	float result = 0.0f;
 
 	for (auto _ : state) {
 		state.PauseTiming();
@@ -57,13 +63,13 @@ static void BM_exomlir_exo_sswap_stride_1(benchmark::State &state) {
 			v = dist(rng);
 		}
 		state.ResumeTiming();
-
-		exomlir_exo_sswap_stride_1(n, data_x.data(), data_y.data());
-		benchmark::DoNotOptimize(data_x.data());
-		benchmark::DoNotOptimize(data_y.data());
+		exomlir_dot(n, data_x.data(), data_y.data(), &result);
+		benchmark::DoNotOptimize(result);
 	}
+
+	state.SetItemsProcessed(state.iterations() * n);
 }
 
-BENCHMARK(BM_exomlir_exo_sswap_stride_1)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
+BENCHMARK(BM_exomlir_dot)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
 
 BENCHMARK_MAIN();

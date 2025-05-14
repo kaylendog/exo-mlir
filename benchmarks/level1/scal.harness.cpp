@@ -5,7 +5,7 @@
 #include <random>
 #include <vector>
 
-#include <exocc/level2/scal.h>
+#include <exocc/level1/scal.h>
 
 extern "C" void exomlir_exo_sscal_stride_1(int32_t n, const float *alpha, const float *x);
 

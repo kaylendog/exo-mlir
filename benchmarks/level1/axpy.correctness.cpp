@@ -3,7 +3,7 @@
 #include <random>
 #include <vector>
 
-#include <exocc/level2/axpy.h>
+#include <exocc/level1/axpy.h>
 
 extern "C" void exomlir_exo_saxpy_stride_1(int32_t n, const float *alpha, const float *x, float *y);
 

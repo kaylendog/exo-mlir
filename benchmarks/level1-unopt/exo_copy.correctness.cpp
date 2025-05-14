@@ -3,13 +3,14 @@
 #include <random>
 #include <vector>
 
-#include <exocc/level1/scal.h>
+#include <exocc/level1-unopt/exo_copy.h>
 
-extern "C" void exomlir_exo_sscal_stride_1(int32_t n, const float *alpha, const float *x);
+extern "C" void exomlir_copy(int32_t n, const float *x, float *y);
 
 int main() {
 	int_fast32_t n = 1 << 24;
 	std::vector<float> x(n);
+	std::vector<float> y(n);
 
 	// setup rng
 	std::mt19937 rng(0);
@@ -20,14 +21,14 @@ int main() {
 		v = dist(rng);
 	}
 
-	// buffers
-	exo_win_1f32 exocc_x = {x.data(), {1}};
 	std::vector<float> exomlir_x(x);
+	std::vector<float> exomlir_y(y);
 
-	float alpha = dist(rng);
+	exo_win_1f32c exocc_x = {x.data(), {1}};
+	exo_win_1f32 exocc_y = {y.data(), {1}};
 
-	exo_sscal_stride_1(nullptr, n, &alpha, exocc_x);
-	exomlir_exo_sscal_stride_1(n, &alpha, exomlir_x.data());
+	copy(nullptr, n, exocc_x, exocc_y);
+	exomlir_copy(n, exomlir_x.data(), exomlir_y.data());
 
 	float precision = 1e-6f;
 
@@ -36,6 +37,7 @@ int main() {
 			std::cerr << "Expected: " << x[i] << ", got: " << exomlir_x[i] << std::endl;
 			return 1;
 		}
+
 		std::cout << "exocc: " << x[i] << ", exomlir: " << exomlir_x[i] << std::endl;
 	}
 

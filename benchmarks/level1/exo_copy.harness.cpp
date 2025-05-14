@@ -3,7 +3,7 @@
 #include <random>
 #include <vector>
 
-#include <exocc/level2/exo_copy.h>
+#include <exocc/level1/exo_copy.h>
 
 extern "C" void exomlir_exo_scopy_stride_1(int32_t n, const float *x, const float *y);
 

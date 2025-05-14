@@ -3,7 +3,7 @@
 #include <random>
 #include <vector>
 
-#include <exocc/level2/asum.h>
+#include <exocc/level1/asum.h>
 
 extern "C" void exomlir_exo_sasum_stride_1(int32_t n, const float *x, float *result);
 

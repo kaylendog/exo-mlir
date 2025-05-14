@@ -3,9 +3,9 @@
 #include <random>
 #include <vector>
 
-#include <exocc/level1/swap.h>
+#include <exocc/level1-unopt/axpy.h>
 
-extern "C" void exomlir_exo_sswap_stride_1(int32_t n, const float *x, float *y);
+extern "C" void exomlir_axpy_alpha_1(int32_t n, const float *x, float *y);
 
 int main() {
 	int_fast32_t n = 1 << 24;
@@ -24,28 +24,26 @@ int main() {
 		v = dist(rng);
 	}
 
-	// buffers
-	exo_win_1f32 exocc_x = {x.data(), {1}};
-	exo_win_1f32 exocc_y = {y.data(), {1}};
+	float result = 0.0f;
+
+	// copy data
 	std::vector<float> exomlir_x(x);
 	std::vector<float> exomlir_y(y);
 
-	exo_sswap_stride_1(nullptr, n, exocc_x, exocc_y);
-	exomlir_exo_sswap_stride_1(n, exomlir_x.data(), exomlir_y.data());
+	exo_win_1f32c exocc_x = {x.data(), {1}};
+	exo_win_1f32 exocc_y = {y.data(), {1}};
+
+	axpy_alpha_1(nullptr, n, exocc_x, exocc_y);
+	exomlir_axpy_alpha_1(n, exomlir_x.data(), exomlir_y.data());
 
 	float precision = 1e-6f;
 
 	for (int i = 0; i < n; ++i) {
-		if (std::abs(x[i] - exomlir_x[i]) > precision) {
-			std::cerr << "Expected: " << x[i] << ", got: " << exomlir_x[i] << std::endl;
-			return 1;
-		}
 		if (std::abs(y[i] - exomlir_y[i]) > precision) {
 			std::cerr << "Expected: " << y[i] << ", got: " << exomlir_y[i] << std::endl;
 			return 1;
 		}
-
-		std::cout << "exocc: " << x[i] << ", exomlir: " << exomlir_x[i] << std::endl;
+		std::cout << "exocc: " << y[i] << ", exomlir: " << exomlir_y[i] << std::endl;
 	}
 
 	return 0;

@@ -3,9 +3,9 @@
 #include <random>
 #include <vector>
 
-#include <exocc/level1/scal.h>
+#include <exocc/level1-unopt/scal.h>
 
-extern "C" void exomlir_exo_sscal_stride_1(int32_t n, const float *alpha, const float *x);
+extern "C" void exomlir_scal_alpha_0(int32_t n, const float *x);
 
 int main() {
 	int_fast32_t n = 1 << 24;
@@ -24,10 +24,8 @@ int main() {
 	exo_win_1f32 exocc_x = {x.data(), {1}};
 	std::vector<float> exomlir_x(x);
 
-	float alpha = dist(rng);
-
-	exo_sscal_stride_1(nullptr, n, &alpha, exocc_x);
-	exomlir_exo_sscal_stride_1(n, &alpha, exomlir_x.data());
+	scal_alpha_0(nullptr, n, exocc_x);
+	exomlir_scal_alpha_0(n, exomlir_x.data());
 
 	float precision = 1e-6f;
 
