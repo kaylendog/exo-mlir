@@ -14,7 +14,7 @@ static void BM_exo_swap(benchmark::State &state) {
 
 	// setup rng
 	std::mt19937 rng(0);
-	std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+	std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
 	exo_win_1f32 x = {data_x.data(), {1}};
 	exo_win_1f32 y = {data_y.data(), {1}};
@@ -45,7 +45,7 @@ static void BM_exomlir_exo_swap(benchmark::State &state) {
 
 	// setup rng
 	std::mt19937 rng(0);
-	std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+	std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
 	for (auto _ : state) {
 		state.PauseTiming();

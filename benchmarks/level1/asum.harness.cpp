@@ -13,7 +13,7 @@ static void BM_exo_sasum_stride_1(benchmark::State &state) {
 
 	// setup rng
 	std::mt19937 rng(0);
-	std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+	std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
 	float result = 0.0f;
 
@@ -38,7 +38,7 @@ static void BM_exomlir_exo_sasum_stride_1(benchmark::State &state) {
 
 	// setup rng
 	std::mt19937 rng(0);
-	std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+	std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
 	float result = 0.0f;
 	for (auto &v : x) {

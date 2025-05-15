@@ -17,7 +17,7 @@ static void BM_asum(benchmark::State &state) {
 
 	// setup rng
 	std::mt19937 rng(0);
-	std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+	std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
 	float result = 0.0f;
 	exo_win_1f32c x = {data.data(), {1}};
@@ -45,7 +45,7 @@ static void BM_exomlir_asum(benchmark::State &state) {
 
 	// setup rng
 	std::mt19937 rng(0);
-	std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+	std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
 	float result = 0.0f;
 

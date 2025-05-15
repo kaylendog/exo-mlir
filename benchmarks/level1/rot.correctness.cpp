@@ -16,7 +16,7 @@ int main() {
 
 	// fill data
 	std::mt19937 rng(0);
-	std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+	std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
 	for (auto &v : exocc_x) {
 		v = dist(rng);

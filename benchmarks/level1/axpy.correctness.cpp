@@ -16,7 +16,7 @@ int main() {
 
 	// setup rng
 	std::mt19937 rng(0);
-	std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+	std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
 	// fill both buffers with random data
 	for (auto &v : exocc_x) {
