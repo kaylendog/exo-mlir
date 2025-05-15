@@ -7,7 +7,7 @@
 
 #include <exocc/level1/scal.h>
 
-extern "C" void exomlir_exo_sscal_stride_1(int32_t n, const float *alpha, const float *x);
+extern "C" void exomlir_exo_sscal_stride_1(int64_t n, const float alpha, float *x);
 
 static void BM_exo_sscal_stride_1(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
@@ -33,7 +33,7 @@ static void BM_exo_sscal_stride_1(benchmark::State &state) {
 	}
 }
 
-BENCHMARK(BM_exo_sscal_stride_1)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
+// BENCHMARK(BM_exo_sscal_stride_1)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
 
 static void BM_exomlir_exo_sscal_stride_1(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
@@ -53,7 +53,7 @@ static void BM_exomlir_exo_sscal_stride_1(benchmark::State &state) {
 		float alpha = dist(rng);
 		state.ResumeTiming();
 
-		exomlir_exo_sscal_stride_1(n, &alpha, data_x.data());
+		exomlir_exo_sscal_stride_1(n, alpha, data_x.data());
 		benchmark::DoNotOptimize(data_x.data());
 	}
 }

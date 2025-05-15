@@ -7,7 +7,7 @@
 
 #include <exocc/level1/rot.h>
 
-extern "C" void exomlir_exo_srot_stride_1(int32_t n, const float *x, const float *y, const float *c, const float *s);
+extern "C" void exomlir_exo_srot_stride_1(int64_t n, float *x, float *y, const float c, const float s);
 
 static void BM_exo_srot_stride_1(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
@@ -40,7 +40,7 @@ static void BM_exo_srot_stride_1(benchmark::State &state) {
 	}
 }
 
-BENCHMARK(BM_exo_srot_stride_1)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
+// BENCHMARK(BM_exo_srot_stride_1)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
 
 static void BM_exomlir_exo_srot_stride_1(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
@@ -65,7 +65,7 @@ static void BM_exomlir_exo_srot_stride_1(benchmark::State &state) {
 		}
 		state.ResumeTiming();
 
-		exomlir_exo_srot_stride_1(n, data_x.data(), data_y.data(), &c, &s);
+		exomlir_exo_srot_stride_1(n, data_x.data(), data_y.data(), c, s);
 		benchmark::DoNotOptimize(data_x.data());
 	}
 }

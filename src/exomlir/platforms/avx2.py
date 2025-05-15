@@ -1,5 +1,5 @@
 from xdsl.context import Context
-from xdsl.dialects import arith, memref, vector
+from xdsl.dialects import arith, llvm, memref, vector
 from xdsl.dialects.builtin import (
     Float32Type,
     IndexType,
@@ -32,15 +32,13 @@ class ConvertMM256StoreuPsOp(RewritePattern):
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(Float32Type(), [8])],
+                load_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(Float32Type(), [8]),
                 ),
-                vector.StoreOp.get(
+                llvm.StoreOp(
                     load_op.result,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -58,27 +56,27 @@ class ConvertMM256FmaddPsOp(RewritePattern):
         rewriter.replace_matched_op(
             (
                 zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load0_op := vector.LoadOp(
-                    operands=[op.arguments[0], [zero_op.result]],
-                    result_types=[VectorType(Float32Type(), [8])],
+                load0_op := llvm.LoadOp(
+                    op.arguments[0],
+                    VectorType(Float32Type(), [8]),
                 ),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(Float32Type(), [8])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(Float32Type(), [8]),
                 ),
-                load2_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(Float32Type(), [8])],
+                load2_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(Float32Type(), [8]),
                 ),
                 fma_op := vector.FMAOp(
                     operands=[
-                        load1_op.result,
-                        load2_op.result,
-                        load0_op.result,
+                        load1_op.dereferenced_value,
+                        load2_op.dereferenced_value,
+                        load0_op.dereferenced_value,
                     ],
                     result_types=[VectorType(Float32Type(), [8])],
                 ),
-                vector.StoreOp.get(fma_op.res, op.arguments[0], [zero_op.result]),
+                llvm.StoreOp(fma_op.res, op.arguments[0], [zero_op.result]),
             )
         )
 
@@ -104,7 +102,7 @@ class ConvertMM256BroadcastSsOp(RewritePattern):
                     operands=[scalar_load_op.results[0]],
                     result_types=[VectorType(Float32Type(), [8])],
                 ),
-                vector.StoreOp.get(
+                llvm.StoreOp(
                     broadcast_op.results[0],
                     op.arguments[0],
                     [zero_op.result],
@@ -126,11 +124,11 @@ class ConvertMM256LoaduPsOp(RewritePattern):
         rewriter.replace_matched_op(
             (
                 zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(Float32Type(), [8])],
+                load_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(Float32Type(), [8]),
                 ),
-                vector.StoreOp.get(
+                llvm.StoreOp(
                     load_op.result,
                     op.arguments[1],
                     [zero_op.result],

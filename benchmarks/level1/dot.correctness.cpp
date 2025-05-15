@@ -5,7 +5,7 @@
 
 #include <exocc/level1/dot.h>
 
-extern "C" void exomlir_exo_sdot_stride_1(int32_t n, const float *x, const float *y, float *result);
+extern "C" void exomlir_exo_sdot_stride_1(int64_t n, const float *x, const float *y, float *result);
 
 int main() {
 	int_fast32_t n = 2048;

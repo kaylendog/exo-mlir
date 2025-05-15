@@ -83,24 +83,14 @@ rule exomlir_compile_mlirtranslate:
         mlir-translate -mlir-to-llvmir build/exomlir/{wildcards.level}/{wildcards.proc}.lowered.mlir > build/exomlir/{wildcards.level}/{wildcards.proc}.ll
         """
 
-rule exomlir_compile_opt:
+rule exomlir_compile_clang:
     input:
         "build/exomlir/{level}/{proc}.ll",
     output:
-        "build/exomlir/{level}/{proc}.bc",
+        "build/exomlir/{level}/{proc}.o",
     shell:
         """
-        opt -O3 -mtriple=x86_64-unknown-linux-gnu build/exomlir/{wildcards.level}/{wildcards.proc}.ll > build/exomlir/{wildcards.level}/{wildcards.proc}.bc
-        """
-
-rule exomlir_compile_llc:
-    input:
-        "build/exomlir{level}/{proc}.bc",
-    output:
-        "build/exomlir{level}/{proc}.o",
-    shell:
-        """
-        llc -O3 -march=x86-64 -mcpu=btver2 -filetype=obj build/exomlir/{wildcards.level}/{wildcards.proc}.bc -o build/exomlir/{wildcards.level}/{wildcards.proc}.o
+        clang -O3 -mavx -mfma -mavx2 -Wall -Wextra -pedantic -c build/exomlir/{wildcards.level}/{wildcards.proc}.ll -o build/exomlir/{wildcards.level}/{wildcards.proc}.o --save-temps=obj
         """
 
 # ---- CORRECTNESS ----
@@ -114,7 +104,7 @@ rule benchmark_compile_correctness:
         "build/correctness/{level}/{proc}.x",
     shell:
         """
-        clang++ -O3 -mavx -mfma -mavx2 -fuse-ld=lld -fsanitize=address -g \
+        clang++ -O3 -mavx -mfma -mavx2 -fuse-ld=lld -fsanitize=undefined \
             -Ibuild \
             -o build/correctness/{wildcards.level}/{wildcards.proc}.x \
             build/exocc/{wildcards.level}/{wildcards.proc}.o \
@@ -139,13 +129,12 @@ rule benchmark_compile_harnesses:
         "build/exocc/{level}/{proc}.o",
         "build/exomlir/{level}/{proc}.o",
         "benchmarks/{level}/{proc}.harness.cpp",
-        # dependency on correctness
         "build/correctness/{level}/{proc}.out"
     output:
         "build/harnesses/{level}/{proc}.x",
     shell:
         """
-        clang++ -O3 -mavx -mfma -mavx2 -fuse-ld=lld \
+        clang++ -O3 -mavx -mfma -mavx2 -fuse-ld=lld -fsanitize=address,undefined \
             -Ibuild \
             -Ivendor/benchmark/include \
             -Lvendor/benchmark/build/src \
@@ -155,21 +144,33 @@ rule benchmark_compile_harnesses:
             build/exomlir/{wildcards.level}/{wildcards.proc}.o \
             benchmarks/{wildcards.level}/{wildcards.proc}.harness.cpp
         """
+
+rule benchmark_run_harnesses:
+    input:
+        "build/harnesses/{level}/{proc}.x",
+    output:
+        "build/results/{level}/{proc}.csv",
+    shell:
+        """
+        ./build/harnesses/{wildcards.level}/{wildcards.proc}.x \
+            --benchmark_format=csv \
+            --benchmark_report_aggregates_only=false \
+            --benchmark_repetitions=16 \
+            > build/results/{wildcards.level}/{wildcards.proc}.csv
+        """
+
 rule all:
     input:
-        # correctness
+        # benchmark results
         expand(
-            "build/correctness/scalar/{proc}.out",
+            "build/results/scalar/{proc}.csv",
             proc=SCALAR_PROCS
         ),
         expand(
-            "build/correctness/level1/{proc}.out",
+            "build/results/level1/{proc}.csv",
             proc=LEVEL_1_PROCS
         ),
-        expand(
-            "build/correctness/level1-unopt/{proc}.out",
-            proc=LEVEL_1_PROCS
-        ),
+
 
 # rule benchmark_count_instrs:
 #     input:
@@ -200,19 +201,6 @@ rule all:
 #         """
 
 
-# rule benchmark_run_harnesses:
-#     input:
-#         "build/harnesses/{level}/{proc}.x",
-#     output:
-#         "build/results/{level}/{proc}.csv",
-#     shell:
-#         """
-#         ./build/harnesses/{wildcards.level}/{wildcards.proc}.x \
-#             --benchmark_format=csv \
-#             --benchmark_report_aggregates_only=false \
-#             --benchmark_repetitions=16 \
-#             > build/results/{wildcards.level}/{wildcards.proc}.csv
-#         """
 
 
 # rule benchmark_process_results:

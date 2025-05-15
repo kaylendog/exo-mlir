@@ -5,7 +5,7 @@
 
 #include <exocc/level1/exo_copy.h>
 
-extern "C" void exomlir_exo_scopy_stride_1(int32_t n, const float *x, const float *y);
+extern "C" void exomlir_exo_scopy_stride_1(int64_t n, const float *x, const float *y);
 
 static void BM_exo_scopy_stride_1(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
@@ -33,7 +33,7 @@ static void BM_exo_scopy_stride_1(benchmark::State &state) {
 	}
 }
 
-BENCHMARK(BM_exo_scopy_stride_1)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
+// BENCHMARK(BM_exo_scopy_stride_1)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
 
 static void BM_exomlir_exo_scopy_stride_1(benchmark::State &state) {
 	int_fast32_t n = state.range(0);

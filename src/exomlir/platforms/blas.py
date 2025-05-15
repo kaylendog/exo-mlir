@@ -4,9 +4,7 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     IndexType,
     IntegerAttr,
-    MemRefType,
     ModuleOp,
-    UnrealizedConversionCastOp,
     VectorType,
     f32,
     f64,
@@ -71,25 +69,27 @@ class ConvertVecAbsF32x8(RewritePattern):
 
         assert len(op.arguments) == 2
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
-                ),
-                fabs_op := llvm_intrinsics.FAbsOp(
-                    load_op.result,
+                load_op := llvm.LoadOp(
+                    op.arguments[1],
                     VectorType(f32, [8]),
                 ),
-                vector.StoreOp.get(
+                fabs_op := llvm_intrinsics.FAbsOp(
+                    load_op.dereferenced_value,
+                    VectorType(f32, [8]),
+                ),
+                llvm.StoreOp(
                     fabs_op.result,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -117,13 +117,16 @@ class ConvertVecAbsF32x8Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 indices_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_int(
                         VectorType(i64, [8]), [0, 1, 2, 3, 4, 5, 6, 7]
@@ -138,26 +141,21 @@ class ConvertVecAbsF32x8Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                load_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
-                ),
-                fabs_op := llvm_intrinsics.FAbsOp(
-                    load_op.result,
+                load_op := llvm.LoadOp(
+                    op.arguments[2],
                     VectorType(f32, [8]),
                 ),
-                vector.StoreOp.get(
-                    load_op.result,
-                    op.arguments[1],
-                    [zero_op.result],
+                fabs_op := llvm_intrinsics.FAbsOp(
+                    load_op.dereferenced_value,
+                    VectorType(f32, [8]),
                 ),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
+                llvm.StoreOp(
+                    load_op.dereferenced_value,
+                    op.arguments[1],
                 ),
                 llvm_intrinsics.MaskedStoreOp(
                     fabs_op.result,
-                    ptr_cast_op.results[0],
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -181,25 +179,27 @@ class ConvertVecAbsF64x4(RewritePattern):
 
         assert len(op.arguments) == 2
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # src: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
-                ),
-                fabs_op := llvm_intrinsics.FAbsOp(
-                    load_op.result,
+                load_op := llvm.LoadOp(
+                    op.arguments[1],
                     VectorType(f64, [4]),
                 ),
-                vector.StoreOp.get(
+                fabs_op := llvm_intrinsics.FAbsOp(
+                    load_op.dereferenced_value,
+                    VectorType(f64, [4]),
+                ),
+                llvm.StoreOp(
                     fabs_op.result,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -227,13 +227,16 @@ class ConvertVecAbsF64x4Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 indices_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_int(
                         VectorType(i64, [4]), [0, 1, 2, 3]
@@ -249,26 +252,21 @@ class ConvertVecAbsF64x4Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                load_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
-                ),
-                fabs_op := llvm_intrinsics.FAbsOp(
-                    load_op.result,
+                load_op := llvm.LoadOp(
+                    op.arguments[2],
                     VectorType(f64, [4]),
                 ),
-                vector.StoreOp.get(
-                    load_op.result,
-                    op.arguments[1],
-                    [zero_op.result],
+                fabs_op := llvm_intrinsics.FAbsOp(
+                    load_op.dereferenced_value,
+                    VectorType(f64, [4]),
                 ),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
+                llvm.StoreOp(
+                    load_op.dereferenced_value,
+                    op.arguments[1],
                 ),
                 llvm_intrinsics.MaskedStoreOp(
                     fabs_op.result,
-                    ptr_cast_op.results[0],
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -292,26 +290,30 @@ class ConvertVecAddRedF32x8(RewritePattern):
 
         assert len(op.arguments) == 2
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load0_op := vector.LoadOp(
-                    operands=[op.arguments[0], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load0_op := llvm.LoadOp(
+                    op.arguments[0],
+                    VectorType(f32, [8]),
                 ),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f32, [8]),
                 ),
-                add_op := llvm.FAddOp(load0_op.result, load1_op.result),
-                vector.StoreOp.get(
+                add_op := llvm.FAddOp(
+                    load0_op.dereferenced_value, load1_op.dereferenced_value
+                ),
+                llvm.StoreOp(
                     add_op.res,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -339,13 +341,16 @@ class ConvertVecAddRedF32x8Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 indices_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_int(
                         VectorType(i64, [8]), [0, 1, 2, 3, 4, 5, 6, 7]
@@ -360,22 +365,20 @@ class ConvertVecAddRedF32x8Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                load0_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load0_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f32, [8]),
                 ),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f32, [8]),
                 ),
-                add_op := llvm.FAddOp(load0_op.result, load1_op.result),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
+                add_op := llvm.FAddOp(
+                    load0_op.dereferenced_value, load1_op.dereferenced_value
                 ),
                 llvm_intrinsics.MaskedStoreOp(
                     add_op.res,
-                    ptr_cast_op.results[0],
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -399,26 +402,30 @@ class ConvertVecAddRedF64x4(RewritePattern):
 
         assert len(op.arguments) == 2
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # src: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load0_op := vector.LoadOp(
-                    operands=[op.arguments[0], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load0_op := llvm.LoadOp(
+                    op.arguments[0],
+                    VectorType(f64, [4]),
                 ),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f64, [4]),
                 ),
-                add_op := llvm.FAddOp(load0_op.result, load1_op.result),
-                vector.StoreOp.get(
+                add_op := llvm.FAddOp(
+                    load0_op.dereferenced_value, load1_op.dereferenced_value
+                ),
+                llvm.StoreOp(
                     add_op.res,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -446,13 +453,16 @@ class ConvertVecAddRedF64x4Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 indices_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_int(
                         VectorType(i64, [4]), [0, 1, 2, 3]
@@ -468,22 +478,20 @@ class ConvertVecAddRedF64x4Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                load0_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load0_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f64, [4]),
                 ),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f64, [4]),
                 ),
-                add_op := llvm.FAddOp(load0_op.result, load1_op.result),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
+                add_op := llvm.FAddOp(
+                    load0_op.dereferenced_value, load1_op.dereferenced_value
                 ),
                 llvm_intrinsics.MaskedStoreOp(
                     add_op.res,
-                    ptr_cast_op.results[0],
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -507,21 +515,23 @@ class ConvertVecCopyF32x8(RewritePattern):
 
         assert len(op.arguments) == 2
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f32, [8]),
                 ),
-                vector.StoreOp.get(
-                    load_op.result,
+                llvm.StoreOp(
+                    load_op.dereferenced_value,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -549,13 +559,16 @@ class ConvertVecCopyF32x8Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 indices_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_int(
                         VectorType(i64, [8]), [0, 1, 2, 3, 4, 5, 6, 7]
@@ -570,17 +583,13 @@ class ConvertVecCopyF32x8Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                load_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
-                ),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
+                load_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f32, [8]),
                 ),
                 llvm_intrinsics.MaskedStoreOp(
-                    load_op.result,
-                    ptr_cast_op.results[0],
+                    load_op.dereferenced_value,
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -604,21 +613,23 @@ class ConvertVecCopyF64x4(RewritePattern):
 
         assert len(op.arguments) == 2
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # src: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f64, [4]),
                 ),
-                vector.StoreOp.get(
-                    load_op.result,
+                llvm.StoreOp(
+                    load_op.dereferenced_value,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -646,13 +657,16 @@ class ConvertVecCopyF64x4Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 indices_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_int(
                         VectorType(i64, [4]), [0, 1, 2, 3]
@@ -668,17 +682,13 @@ class ConvertVecCopyF64x4Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                load_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
-                ),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
+                load_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f64, [4]),
                 ),
                 llvm_intrinsics.MaskedStoreOp(
-                    load_op.result,
-                    ptr_cast_op.results[0],
+                    load_op.dereferenced_value,
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -703,21 +713,23 @@ class ConvertVecLoadF32x8(RewritePattern):
 
         assert len(op.arguments) == 2
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f32, [8]),
                 ),
-                vector.StoreOp.get(
-                    load_op.result,
+                llvm.StoreOp(
+                    load_op.dereferenced_value,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -745,13 +757,16 @@ class ConvertVecLoadF32x8Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 indices_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_int(
                         VectorType(i64, [8]), [0, 1, 2, 3, 4, 5, 6, 7]
@@ -766,20 +781,10 @@ class ConvertVecLoadF32x8Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                load_op := vector.LoadOp(
-                    operands=[
-                        op.arguments[2],
-                        [zero_op.result],
-                    ],
-                    result_types=[VectorType(f32, [8])],
-                ),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
-                ),
+                load_op := llvm.LoadOp(op.arguments[2], VectorType(f32, [8])),
                 llvm_intrinsics.MaskedStoreOp(
-                    load_op.result,
-                    ptr_cast_op.results[0],
+                    load_op.dereferenced_value,
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -804,21 +809,23 @@ class ConvertVecLoadF64x4(RewritePattern):
 
         assert len(op.arguments) == 2
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # src: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f64, [4]),
                 ),
-                vector.StoreOp.get(
-                    load_op.result,
+                llvm.StoreOp(
+                    load_op.dereferenced_value,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -846,13 +853,16 @@ class ConvertVecLoadF64x4Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 indices_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_int(
                         VectorType(i64, [4]), [0, 1, 2, 3]
@@ -868,20 +878,13 @@ class ConvertVecLoadF64x4Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                load_op := vector.LoadOp(
-                    operands=[
-                        op.arguments[2],
-                        [zero_op.result],
-                    ],
-                    result_types=[VectorType(f64, [4])],
-                ),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
+                load_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f64, [4]),
                 ),
                 llvm_intrinsics.MaskedStoreOp(
-                    load_op.result,
-                    ptr_cast_op.results[0],
+                    load_op.dereferenced_value,
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -906,29 +909,28 @@ class ConvertVecReduceAddSclF32x8(RewritePattern):
 
         # dst: f32 @ DRAM
         assert op.arguments[0].type == f32, op.arguments[0].type
-        assert isinstance(dst_load_op := op.arguments[0].owner, memref.LoadOp), (
+        assert isinstance(acc_load_op := op.arguments[0].owner, llvm.LoadOp), (
             op.arguments[0].owner
         )
 
         # src: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f32, [8]),
                 ),
                 reduce_op := vector.ReductionOp(
-                    load_op.result,
+                    load_op.dereferenced_value,
                     vector.CombiningKindFlag.ADD,
                     f32,
                     acc=op.arguments[0],
                 ),
-                memref.StoreOp.get(
-                    reduce_op.result, dst_load_op.memref, [zero_op.result]
-                ),
+                llvm.StoreOp(reduce_op.result, acc_load_op.ptr),
             )
         )
 
@@ -951,29 +953,28 @@ class ConvertVecReduceAddSclF64x4(RewritePattern):
 
         # dst: f64 @ DRAM
         assert op.arguments[0].type == f64, op.arguments[0].type
-        assert isinstance(dst_load_op := op.arguments[0].owner, memref.LoadOp), (
+        assert isinstance(acc_load_op := op.arguments[0].owner, llvm.LoadOp), (
             op.arguments[0].owner
         )
 
         # src: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f64, [4]),
                 ),
                 reduce_op := vector.ReductionOp(
-                    load_op.result,
+                    load_op.dereferenced_value,
                     vector.CombiningKindFlag.ADD,
                     f64,
                     acc=op.arguments[0],
                 ),
-                memref.StoreOp.get(
-                    reduce_op.result, dst_load_op.memref, [zero_op.result]
-                ),
+                llvm.StoreOp(reduce_op.result, acc_load_op.ptr),
             )
         )
 
@@ -994,20 +995,20 @@ class ConvertVecZeroF32x8(RewritePattern):
 
         assert len(op.arguments) == 1
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 const_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_float(
                         VectorType(f32, [8]), [0.0] * 8
                     )
                 ),
-                vector.StoreOp.get(
+                llvm.StoreOp(
                     const_op.result,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -1029,20 +1030,20 @@ class ConvertVecZeroF64x4(RewritePattern):
 
         assert len(op.arguments) == 1
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 const_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_float(
                         VectorType(f64, [4]), [0.0] * 4
                     )
                 ),
-                vector.StoreOp.get(
+                llvm.StoreOp(
                     const_op.result,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -1067,28 +1068,35 @@ class ConvertVecAddF32x8(RewritePattern):
 
         assert len(op.arguments) == 3
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # src1: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src2: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load0_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load0_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f32, [8]),
                 ),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f32, [8]),
                 ),
-                add_op := llvm.FAddOp(load0_op.result, load1_op.result),
-                vector.StoreOp.get(
+                add_op := llvm.FAddOp(
+                    load0_op.dereferenced_value,
+                    load1_op.dereferenced_value,
+                ),
+                llvm.StoreOp(
                     add_op.res,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -1117,15 +1125,20 @@ class ConvertVecAddF32x8Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src1: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
         # src2: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[3].type, MemRefType), op.arguments[3].type
+        assert isinstance(op.arguments[3].type, llvm.LLVMPointerType), op.arguments[
+            3
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 indices_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_int(
                         VectorType(i64, [8]), [0, 1, 2, 3, 4, 5, 6, 7]
@@ -1140,22 +1153,20 @@ class ConvertVecAddF32x8Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                load0_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load0_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f32, [8]),
                 ),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[3], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[3],
+                    VectorType(f32, [8]),
                 ),
-                add_op := llvm.FAddOp(load0_op.result, load1_op.result),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
+                add_op := llvm.FAddOp(
+                    load0_op.dereferenced_value, load1_op.dereferenced_value
                 ),
                 llvm_intrinsics.MaskedStoreOp(
                     add_op.res,
-                    ptr_cast_op.results[0],
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -1181,28 +1192,34 @@ class ConvertVecAddF64x4(RewritePattern):
 
         assert len(op.arguments) == 3
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # src1: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src2: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load0_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load0_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f64, [4]),
                 ),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f64, [4]),
                 ),
-                add_op := llvm.FAddOp(load0_op.result, load1_op.result),
-                vector.StoreOp.get(
+                add_op := llvm.FAddOp(
+                    load0_op.dereferenced_value, load1_op.dereferenced_value
+                ),
+                llvm.StoreOp(
                     add_op.res,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -1231,15 +1248,20 @@ class ConvertVecAddF64x4Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src1: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
         # src2: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[3].type, MemRefType), op.arguments[3].type
+        assert isinstance(op.arguments[3].type, llvm.LLVMPointerType), op.arguments[
+            3
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 indices_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_int(
                         VectorType(i64, [4]), [0, 1, 2, 3]
@@ -1254,22 +1276,20 @@ class ConvertVecAddF64x4Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                load0_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load0_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f64, [4]),
                 ),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[3], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[3],
+                    VectorType(f64, [4]),
                 ),
-                add_op := llvm.FAddOp(load0_op.result, load1_op.result),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
+                add_op := llvm.FAddOp(
+                    load0_op.dereferenced_value, load1_op.dereferenced_value
                 ),
                 llvm_intrinsics.MaskedStoreOp(
                     add_op.res,
-                    ptr_cast_op.results[0],
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -1292,21 +1312,21 @@ class ConvertVecBrdcstSclF32x8(RewritePattern):
 
         assert len(op.arguments) == 2
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # src: f32 @ DRAM
         assert op.arguments[1].type == f32, op.arguments[1].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 broadcast_op := vector.BroadcastOp(
                     operands=[op.arguments[1]],
                     result_types=[VectorType(f32, [8])],
                 ),
-                vector.StoreOp.get(
+                llvm.StoreOp(
                     broadcast_op.vector,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -1333,7 +1353,9 @@ class ConvertVecBrdcstSclF32x8Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src: f32 @ DRAM
         assert op.arguments[2].type == f32, op.arguments[2].type
 
@@ -1357,13 +1379,9 @@ class ConvertVecBrdcstSclF32x8Pfx(RewritePattern):
                     operands=[op.arguments[2]],
                     result_types=[VectorType(f32, [8])],
                 ),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
-                ),
                 llvm_intrinsics.MaskedStoreOp(
                     broadcast_op.vector,
-                    ptr_cast_op.results[0],
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -1386,21 +1404,21 @@ class ConvertVecBrdcstSclF64x4(RewritePattern):
 
         assert len(op.arguments) == 2
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # src: f64 @ DRAM
         assert op.arguments[1].type == f64, op.arguments[1].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 broadcast_op := vector.BroadcastOp(
                     operands=[op.arguments[1]],
                     result_types=[VectorType(f64, [4])],
                 ),
-                vector.StoreOp.get(
+                llvm.StoreOp(
                     broadcast_op.vector,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -1427,7 +1445,9 @@ class ConvertVecBrdcstSclF64x4Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src: f64 @ DRAM
         assert op.arguments[2].type == f64, op.arguments[2].type
 
@@ -1451,13 +1471,9 @@ class ConvertVecBrdcstSclF64x4Pfx(RewritePattern):
                     operands=[op.arguments[2]],
                     result_types=[VectorType(f64, [4])],
                 ),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
-                ),
                 llvm_intrinsics.MaskedStoreOp(
                     broadcast_op.vector,
-                    ptr_cast_op.results[0],
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -1484,43 +1500,49 @@ class ConvertVecFmadd2F32x8(RewritePattern):
 
         assert len(op.arguments) == 4
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # src1: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src2: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
         # src3: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[3].type, MemRefType), op.arguments[3].type
+        assert isinstance(op.arguments[3].type, llvm.LLVMPointerType), op.arguments[
+            3
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load0_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load0_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f32, [8]),
                 ),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f32, [8]),
                 ),
-                load2_op := vector.LoadOp(
-                    operands=[op.arguments[3], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load2_op := llvm.LoadOp(
+                    op.arguments[3],
+                    VectorType(f32, [8]),
                 ),
                 fma_op := vector.FMAOp(
                     operands=[
-                        load0_op.result,
-                        load1_op.result,
-                        load2_op.result,
+                        load0_op.dereferenced_value,
+                        load1_op.dereferenced_value,
+                        load2_op.dereferenced_value,
                     ],
                     result_types=[
                         VectorType(f32, [8]),
                     ],
                 ),
-                vector.StoreOp.get(
+                llvm.StoreOp(
                     fma_op.res,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -1551,17 +1573,24 @@ class ConvertVecFmadd2F32x8Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src1: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
         # src2: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[3].type, MemRefType), op.arguments[3].type
+        assert isinstance(op.arguments[3].type, llvm.LLVMPointerType), op.arguments[
+            3
+        ].type
         # src3: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[4].type, MemRefType), op.arguments[4].type
+        assert isinstance(op.arguments[4].type, llvm.LLVMPointerType), op.arguments[
+            4
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 indices_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_int(
                         VectorType(i64, [8]), [0, 1, 2, 3, 4, 5, 6, 7]
@@ -1576,35 +1605,31 @@ class ConvertVecFmadd2F32x8Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                load0_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load0_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f32, [8]),
                 ),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[3], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[3],
+                    VectorType(f32, [8]),
                 ),
-                load2_op := vector.LoadOp(
-                    operands=[op.arguments[4], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load2_op := llvm.LoadOp(
+                    op.arguments[4],
+                    VectorType(f32, [8]),
                 ),
                 fma_op := vector.FMAOp(
                     operands=[
-                        load0_op.result,
-                        load1_op.result,
-                        load2_op.result,
+                        load0_op.dereferenced_value,
+                        load1_op.dereferenced_value,
+                        load2_op.dereferenced_value,
                     ],
                     result_types=[
                         VectorType(f32, [8]),
                     ],
                 ),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
-                ),
                 llvm_intrinsics.MaskedStoreOp(
                     fma_op.res,
-                    ptr_cast_op.results[0],
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -1631,46 +1656,52 @@ class ConvertVecFmadd2F64x4(RewritePattern):
 
         assert len(op.arguments) == 4
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # src1: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src2: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
         # src3: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[3].type, MemRefType), op.arguments[3].type
+        assert isinstance(op.arguments[3].type, llvm.LLVMPointerType), op.arguments[
+            3
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load0_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load0_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f64, [4]),
                 ),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f64, [4]),
                 ),
-                load2_op := vector.LoadOp(
-                    operands=[op.arguments[3], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load2_op := llvm.LoadOp(
+                    op.arguments[3],
+                    VectorType(f64, [4]),
                 ),
                 fma_op := vector.FMAOp(
                     operands=[
                         # lhs
-                        load0_op.result,
+                        load0_op.dereferenced_value,
                         # rhs
-                        load1_op.result,
+                        load1_op.dereferenced_value,
                         # acc
-                        load2_op.result,
+                        load2_op.dereferenced_value,
                     ],
                     result_types=[
                         VectorType(f64, [4]),
                     ],
                 ),
-                vector.StoreOp.get(
+                llvm.StoreOp(
                     fma_op.res,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -1701,17 +1732,24 @@ class ConvertVecFmadd2F64x4Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src1: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
         # src2: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[3].type, MemRefType), op.arguments[3].type
+        assert isinstance(op.arguments[3].type, llvm.LLVMPointerType), op.arguments[
+            3
+        ].type
         # src3: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[4].type, MemRefType), op.arguments[4].type
+        assert isinstance(op.arguments[4].type, llvm.LLVMPointerType), op.arguments[
+            4
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 indices_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_int(
                         VectorType(i64, [4]), [0, 1, 2, 3]
@@ -1726,38 +1764,31 @@ class ConvertVecFmadd2F64x4Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                load0_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load0_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f64, [4]),
                 ),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[3], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[3],
+                    VectorType(f64, [4]),
                 ),
-                load2_op := vector.LoadOp(
-                    operands=[op.arguments[4], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
-                ),
+                load2_op := llvm.LoadOp(op.arguments[4], VectorType(f64, [4])),
                 fma_op := vector.FMAOp(
                     operands=[
                         # lhs
-                        load0_op.result,
+                        load0_op.dereferenced_value,
                         # rhs
-                        load1_op.result,
+                        load1_op.dereferenced_value,
                         # acc
-                        load2_op.result,
+                        load2_op.dereferenced_value,
                     ],
                     result_types=[
                         VectorType(f64, [4]),
                     ],
                 ),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
-                ),
                 llvm_intrinsics.MaskedStoreOp(
                     fma_op.res,
-                    ptr_cast_op.results[0],
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -1781,21 +1812,23 @@ class ConvertVecStoreF32x8(RewritePattern):
 
         assert len(op.arguments) == 2
         # dst: [f32][8] @ DRAM
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # src: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f32, [8]),
                 ),
-                vector.StoreOp.get(
-                    load_op.result,
+                llvm.StoreOp(
+                    load_op.dereferenced_value,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -1823,13 +1856,16 @@ class ConvertVecStoreF32x8Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f32][8] @ DRAM
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 indices_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_int(
                         VectorType(i64, [8]), [0, 1, 2, 3, 4, 5, 6, 7]
@@ -1844,17 +1880,13 @@ class ConvertVecStoreF32x8Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                load_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
-                ),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
+                load_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f32, [8]),
                 ),
                 llvm_intrinsics.MaskedStoreOp(
-                    load_op.result,
-                    ptr_cast_op.results[0],
+                    load_op.dereferenced_value,
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -1878,21 +1910,23 @@ class ConvertVecStoreF64x4(RewritePattern):
 
         assert len(op.arguments) == 2
         # dst: [f64][4] @ DRAM
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # src: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f64, [4]),
                 ),
-                vector.StoreOp.get(
-                    load_op.result,
+                llvm.StoreOp(
+                    load_op.dereferenced_value,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -1920,13 +1954,16 @@ class ConvertVecStoreF64x4Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f64][4] @ DRAM
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 indices_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_int(
                         VectorType(i64, [4]), [0, 1, 2, 3]
@@ -1941,17 +1978,13 @@ class ConvertVecStoreF64x4Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                load_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
-                ),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
+                load_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f64, [4]),
                 ),
                 llvm_intrinsics.MaskedStoreOp(
-                    load_op.result,
-                    ptr_cast_op.results[0],
+                    load_op.dereferenced_value,
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -1977,44 +2010,48 @@ class ConvertVecFmaddRedF32x8(RewritePattern):
 
         assert len(op.arguments) == 3
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # src1: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src2: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load0_op := vector.LoadOp(
-                    operands=[op.arguments[0], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load0_op := llvm.LoadOp(
+                    op.arguments[0],
+                    VectorType(f32, [8]),
                 ),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f32, [8]),
                 ),
-                load2_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load2_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f32, [8]),
                 ),
                 fma_op := vector.FMAOp(
                     operands=[
                         # lhs
-                        load1_op.result,
+                        load1_op.dereferenced_value,
                         # rhs
-                        load2_op.result,
+                        load2_op.dereferenced_value,
                         # acc
-                        load0_op.result,
+                        load0_op.dereferenced_value,
                     ],
                     result_types=[
                         VectorType(f32, [8]),
                     ],
                 ),
-                vector.StoreOp.get(
+                llvm.StoreOp(
                     fma_op.res,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -2045,15 +2082,20 @@ class ConvertVecFmaddRedF32x8Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src1: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
         # src2: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[3].type, MemRefType), op.arguments[3].type
+        assert isinstance(op.arguments[3].type, llvm.LLVMPointerType), op.arguments[
+            3
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 indices_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_int(
                         VectorType(i64, [8]), [0, 1, 2, 3, 4, 5, 6, 7]
@@ -2068,38 +2110,34 @@ class ConvertVecFmaddRedF32x8Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                load0_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load0_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f32, [8]),
                 ),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f32, [8]),
                 ),
-                load2_op := vector.LoadOp(
-                    operands=[op.arguments[3], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load2_op := llvm.LoadOp(
+                    op.arguments[3],
+                    VectorType(f32, [8]),
                 ),
                 fma_op := vector.FMAOp(
                     operands=[
                         # lhs
-                        load1_op.result,
+                        load1_op.dereferenced_value,
                         # rhs
-                        load2_op.result,
+                        load2_op.dereferenced_value,
                         # acc
-                        load0_op.result,
+                        load0_op.dereferenced_value,
                     ],
                     result_types=[
                         VectorType(f32, [8]),
                     ],
                 ),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
-                ),
                 llvm_intrinsics.MaskedStoreOp(
                     fma_op.res,
-                    ptr_cast_op.results[0],
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -2126,44 +2164,45 @@ class ConvertVecFmaddRedF64x4(RewritePattern):
 
         assert len(op.arguments) == 3
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # src1: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src2: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load0_op := vector.LoadOp(
-                    operands=[op.arguments[0], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load0_op := llvm.LoadOp(
+                    op.arguments[0],
+                    VectorType(f64, [4]),
                 ),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f64, [4]),
                 ),
-                load2_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
-                ),
+                load2_op := llvm.LoadOp(op.arguments[2], VectorType(f64, [4])),
                 fma_op := vector.FMAOp(
                     operands=[
                         # lhs
-                        load1_op.result,
+                        load1_op.dereferenced_value,
                         # rhs
-                        load2_op.result,
+                        load2_op.dereferenced_value,
                         # acc
-                        load0_op.result,
+                        load0_op.dereferenced_value,
                     ],
                     result_types=[
                         VectorType(f64, [4]),
                     ],
                 ),
-                vector.StoreOp.get(
+                llvm.StoreOp(
                     fma_op.res,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -2194,15 +2233,20 @@ class ConvertVecFmaddRedF64x4Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src1: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
         # src2: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[3].type, MemRefType), op.arguments[3].type
+        assert isinstance(op.arguments[3].type, llvm.LLVMPointerType), op.arguments[
+            3
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 indices_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_int(
                         VectorType(i64, [4]), [0, 1, 2, 3]
@@ -2217,38 +2261,34 @@ class ConvertVecFmaddRedF64x4Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                load0_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load0_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f64, [4]),
                 ),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f64, [4]),
                 ),
-                load2_op := vector.LoadOp(
-                    operands=[op.arguments[3], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load2_op := llvm.LoadOp(
+                    op.arguments[3],
+                    VectorType(f64, [4]),
                 ),
                 fma_op := vector.FMAOp(
                     operands=[
                         # lhs
-                        load1_op.result,
+                        load1_op.dereferenced_value,
                         # rhs
-                        load2_op.result,
+                        load2_op.dereferenced_value,
                         # acc
-                        load0_op.result,
+                        load0_op.dereferenced_value,
                     ],
                     result_types=[
                         VectorType(f64, [4]),
                     ],
                 ),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
-                ),
                 llvm_intrinsics.MaskedStoreOp(
                     fma_op.res,
-                    ptr_cast_op.results[0],
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -2276,46 +2316,49 @@ class ConvertVecFmadd1F32x8(RewritePattern):
 
         assert len(op.arguments) == 4
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # src1: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src2: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
         # src3: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[3].type, MemRefType), op.arguments[3].type
+        assert isinstance(op.arguments[3].type, llvm.LLVMPointerType), op.arguments[
+            3
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f32, [8]),
                 ),
-                load2_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load2_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f32, [8]),
                 ),
-                load3_op := vector.LoadOp(
-                    operands=[op.arguments[3], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
-                ),
+                load3_op := llvm.LoadOp(op.arguments[3], VectorType(f32, [8])),
                 fma_op := vector.FMAOp(
                     operands=[
                         # lhs
-                        load1_op.result,
+                        load1_op.dereferenced_value,
                         # rhs
-                        load2_op.result,
+                        load2_op.dereferenced_value,
                         # acc
-                        load3_op.result,
+                        load3_op.dereferenced_value,
                     ],
                     result_types=[
                         VectorType(f32, [8]),
                     ],
                 ),
-                vector.StoreOp.get(
+                llvm.StoreOp(
                     fma_op.res,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -2348,17 +2391,24 @@ class ConvertVecFmadd1F32x8Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src1: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
         # src2: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[3].type, MemRefType), op.arguments[3].type
+        assert isinstance(op.arguments[3].type, llvm.LLVMPointerType), op.arguments[
+            3
+        ].type
         # src3: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[4].type, MemRefType), op.arguments[4].type
+        assert isinstance(op.arguments[4].type, llvm.LLVMPointerType), op.arguments[
+            4
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 indices_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_int(
                         VectorType(i64, [8]), [0, 1, 2, 3, 4, 5, 6, 7]
@@ -2373,38 +2423,31 @@ class ConvertVecFmadd1F32x8Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f32, [8]),
                 ),
-                load2_op := vector.LoadOp(
-                    operands=[op.arguments[3], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load2_op := llvm.LoadOp(
+                    op.arguments[3],
+                    VectorType(f32, [8]),
                 ),
-                load3_op := vector.LoadOp(
-                    operands=[op.arguments[4], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
-                ),
+                load3_op := llvm.LoadOp(op.arguments[4], VectorType(f32, [8])),
                 fma_op := vector.FMAOp(
                     operands=[
                         # lhs
-                        load1_op.result,
+                        load1_op.dereferenced_value,
                         # rhs
-                        load2_op.result,
+                        load2_op.dereferenced_value,
                         # acc
-                        load3_op.result,
+                        load3_op.dereferenced_value,
                     ],
                     result_types=[
                         VectorType(f32, [8]),
                     ],
                 ),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
-                ),
                 llvm_intrinsics.MaskedStoreOp(
                     fma_op.res,
-                    ptr_cast_op.results[0],
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -2432,46 +2475,49 @@ class ConvertVecFmadd1F64x4(RewritePattern):
 
         assert len(op.arguments) == 4
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # src1: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src2: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
         # src3: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[3].type, MemRefType), op.arguments[3].type
+        assert isinstance(op.arguments[3].type, llvm.LLVMPointerType), op.arguments[
+            3
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f64, [4]),
                 ),
-                load2_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
-                ),
-                load3_op := vector.LoadOp(
-                    operands=[op.arguments[3], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load2_op := llvm.LoadOp(op.arguments[2], VectorType(f64, [4])),
+                load3_op := llvm.LoadOp(
+                    op.arguments[3],
+                    VectorType(f64, [4]),
                 ),
                 fma_op := vector.FMAOp(
                     operands=[
                         # lhs
-                        load1_op.result,
+                        load1_op.dereferenced_value,
                         # rhs
-                        load2_op.result,
+                        load2_op.dereferenced_value,
                         # acc
-                        load3_op.result,
+                        load3_op.dereferenced_value,
                     ],
                     result_types=[
                         VectorType(f64, [4]),
                     ],
                 ),
-                vector.StoreOp.get(
+                llvm.StoreOp(
                     fma_op.res,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -2502,17 +2548,24 @@ class ConvertVecFmadd1F64x4Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src1: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
         # src2: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[3].type, MemRefType), op.arguments[3].type
+        assert isinstance(op.arguments[3].type, llvm.LLVMPointerType), op.arguments[
+            3
+        ].type
         # src3: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[4].type, MemRefType), op.arguments[4].type
+        assert isinstance(op.arguments[4].type, llvm.LLVMPointerType), op.arguments[
+            4
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 indices_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_int(
                         VectorType(i64, [4]), [0, 1, 2, 3]
@@ -2527,38 +2580,31 @@ class ConvertVecFmadd1F64x4Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f64, [4]),
                 ),
-                load2_op := vector.LoadOp(
-                    operands=[op.arguments[3], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load2_op := llvm.LoadOp(
+                    op.arguments[3],
+                    VectorType(f64, [4]),
                 ),
-                load3_op := vector.LoadOp(
-                    operands=[op.arguments[4], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
-                ),
+                load3_op := llvm.LoadOp(op.arguments[4], VectorType(f64, [4])),
                 fma_op := vector.FMAOp(
                     operands=[
                         # lhs
-                        load1_op.result,
+                        load1_op.dereferenced_value,
                         # rhs
-                        load2_op.result,
+                        load2_op.dereferenced_value,
                         # acc
-                        load3_op.result,
+                        load3_op.dereferenced_value,
                     ],
                     result_types=[
                         VectorType(f64, [4]),
                     ],
                 ),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
-                ),
                 llvm_intrinsics.MaskedStoreOp(
                     fma_op.res,
-                    ptr_cast_op.results[0],
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -2584,31 +2630,35 @@ class ConvertVecMulF32x8(RewritePattern):
 
         assert len(op.arguments) == 3
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # src1: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src2: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f32, [8]),
                 ),
-                load2_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load2_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f32, [8]),
                 ),
                 mul_op := llvm.FMulOp(
-                    load1_op.result,
-                    load2_op.result,
+                    load1_op.dereferenced_value,
+                    load2_op.dereferenced_value,
                 ),
-                vector.StoreOp.get(
+                llvm.StoreOp(
                     mul_op.res,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -2637,15 +2687,20 @@ class ConvertVecMulF32x8Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src1: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
         # src2: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[3].type, MemRefType), op.arguments[3].type
+        assert isinstance(op.arguments[3].type, llvm.LLVMPointerType), op.arguments[
+            3
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 indices_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_int(
                         VectorType(i64, [8]), [0, 1, 2, 3, 4, 5, 6, 7]
@@ -2660,25 +2715,21 @@ class ConvertVecMulF32x8Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f32, [8]),
                 ),
-                load2_op := vector.LoadOp(
-                    operands=[op.arguments[3], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load2_op := llvm.LoadOp(
+                    op.arguments[3],
+                    VectorType(f32, [8]),
                 ),
                 mul_op := llvm.FMulOp(
-                    load1_op.result,
-                    load2_op.result,
-                ),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
+                    load1_op.dereferenced_value,
+                    load2_op.dereferenced_value,
                 ),
                 llvm_intrinsics.MaskedStoreOp(
                     mul_op.res,
-                    ptr_cast_op.results[0],
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -2704,31 +2755,32 @@ class ConvertVecMulF64x4(RewritePattern):
 
         assert len(op.arguments) == 3
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # src1: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src2: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f64, [4]),
                 ),
-                load2_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
-                ),
+                load2_op := llvm.LoadOp(op.arguments[2], VectorType(f64, [4])),
                 mul_op := llvm.FMulOp(
-                    load1_op.result,
-                    load2_op.result,
+                    load1_op.dereferenced_value,
+                    load2_op.dereferenced_value,
                 ),
-                vector.StoreOp.get(
+                llvm.StoreOp(
                     mul_op.res,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -2757,15 +2809,20 @@ class ConvertVecMulF64x4Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src1: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
         # src2: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[3].type, MemRefType), op.arguments[3].type
+        assert isinstance(op.arguments[3].type, llvm.LLVMPointerType), op.arguments[
+            3
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 indices_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_int(
                         VectorType(i64, [4]), [0, 1, 2, 3]
@@ -2780,25 +2837,19 @@ class ConvertVecMulF64x4Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                load1_op := vector.LoadOp(
-                    operands=[op.arguments[2], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load1_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f64, [4]),
                 ),
-                load2_op := vector.LoadOp(
-                    operands=[op.arguments[3], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load2_op := llvm.LoadOp(
+                    op.arguments[3],
+                    VectorType(f64, [4]),
                 ),
                 mul_op := llvm.FMulOp(
-                    load1_op.result,
-                    load2_op.result,
+                    load1_op.dereferenced_value,
+                    load2_op.dereferenced_value,
                 ),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
-                ),
-                llvm_intrinsics.MaskedStoreOp(
-                    mul_op.res, ptr_cast_op.results[0], mask_op.res
-                ),
+                llvm_intrinsics.MaskedStoreOp(mul_op.res, op.arguments[1], mask_op.res),
             )
         )
 
@@ -2821,31 +2872,33 @@ class ConvertVecNegF32x8(RewritePattern):
 
         assert len(op.arguments) == 2
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # src: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 zero_vec_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_float(
                         VectorType(f32, [8]), [0.0] * 8
                     )
                 ),
-                load_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f32, [8])],
+                load_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f32, [8]),
                 ),
                 # missing llvm.FNeg
                 neg_op := llvm.FSubOp(
                     zero_vec_op.result,
-                    load_op.result,
+                    load_op.dereferenced_value,
                 ),
-                vector.StoreOp.get(
+                llvm.StoreOp(
                     neg_op.res,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -2873,13 +2926,16 @@ class ConvertVecNegF32x8Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 zero_vec_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_float(
                         VectorType(f32, [8]), [0.0] * 8
@@ -2899,25 +2955,15 @@ class ConvertVecNegF32x8Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                load_op := vector.LoadOp(
-                    operands=[
-                        op.arguments[2],
-                        [zero_op.result],
-                    ],
-                    result_types=[VectorType(f32, [8])],
-                ),
+                load_op := llvm.LoadOp(op.arguments[2], VectorType(f32, [8])),
                 # same as above
                 neg_op := llvm.FSubOp(
                     zero_vec_op.result,
-                    load_op.result,
-                ),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
+                    load_op.dereferenced_value,
                 ),
                 llvm_intrinsics.MaskedStoreOp(
                     neg_op.res,
-                    ptr_cast_op.results[0],
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -2941,31 +2987,33 @@ class ConvertVecNegF64x4(RewritePattern):
 
         assert len(op.arguments) == 2
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[0].type, MemRefType), op.arguments[0].type
+        assert isinstance(op.arguments[0].type, llvm.LLVMPointerType), op.arguments[
+            0
+        ].type
         # src: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 zero_vec_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_float(
                         VectorType(f64, [4]), [0.0] * 4
                     )
                 ),
-                load_op := vector.LoadOp(
-                    operands=[op.arguments[1], [zero_op.result]],
-                    result_types=[VectorType(f64, [4])],
+                load_op := llvm.LoadOp(
+                    op.arguments[1],
+                    VectorType(f64, [4]),
                 ),
                 # same as above
                 neg_op := llvm.FSubOp(
                     zero_vec_op.result,
-                    load_op.result,
+                    load_op.dereferenced_value,
                 ),
-                vector.StoreOp.get(
+                llvm.StoreOp(
                     neg_op.res,
                     op.arguments[0],
-                    [zero_op.result],
                 ),
             )
         )
@@ -2994,13 +3042,16 @@ class ConvertVecNegF64x4Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
         # src: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[2].type, MemRefType), op.arguments[2].type
+        assert isinstance(op.arguments[2].type, llvm.LLVMPointerType), op.arguments[
+            2
+        ].type
 
         rewriter.replace_matched_op(
             (
-                zero_op := arith.ConstantOp(IntegerAttr(0, IndexType())),
                 zero_vec_op := arith.ConstantOp(
                     DenseIntOrFPElementsAttr.create_dense_float(
                         VectorType(f64, [4]), [0.0] * 4
@@ -3020,25 +3071,18 @@ class ConvertVecNegF64x4Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                load_op := vector.LoadOp(
-                    operands=[
-                        op.arguments[2],
-                        [zero_op.result],
-                    ],
-                    result_types=[VectorType(f64, [4])],
+                load_op := llvm.LoadOp(
+                    op.arguments[2],
+                    VectorType(f64, [4]),
                 ),
                 # same as above
                 neg_op := llvm.FSubOp(
                     zero_vec_op.result,
-                    load_op.result,
-                ),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
+                    load_op.dereferenced_value,
                 ),
                 llvm_intrinsics.MaskedStoreOp(
                     neg_op.res,
-                    ptr_cast_op.results[0],
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -3065,7 +3109,9 @@ class ConvertVecZeroF32x8Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f32][8] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
 
         rewriter.replace_matched_op(
             (
@@ -3088,13 +3134,9 @@ class ConvertVecZeroF32x8Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
-                ),
                 llvm_intrinsics.MaskedStoreOp(
                     zero_vec_op.result,
-                    ptr_cast_op.results[0],
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )
@@ -3121,7 +3163,9 @@ class ConvertVecZeroF64x4Pfx(RewritePattern):
         # m: size
         assert op.arguments[0].type == i64, op.arguments[0].type
         # dst: [f64][4] @ VEC_AVX2
-        assert isinstance(op.arguments[1].type, MemRefType), op.arguments[1].type
+        assert isinstance(op.arguments[1].type, llvm.LLVMPointerType), op.arguments[
+            1
+        ].type
 
         rewriter.replace_matched_op(
             (
@@ -3144,13 +3188,9 @@ class ConvertVecZeroF64x4Pfx(RewritePattern):
                     broadcast_thresh_op.vector,
                     IntegerAttr(llvm.ICmpPredicateFlag.SLT.to_int(), i64),
                 ),
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    [op.arguments[1]],
-                    llvm.LLVMPointerType.opaque(),
-                ),
                 llvm_intrinsics.MaskedStoreOp(
                     zero_vec_op.result,
-                    ptr_cast_op.results[0],
+                    op.arguments[1],
                     mask_op.res,
                 ),
             )

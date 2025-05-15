@@ -5,7 +5,7 @@
 
 #include <exocc/scalar/conv1d.h>
 
-extern "C" void exomlir_conv1d_lt_32768(const int32_t n, int32_t *data, const int32_t *kernels, int32_t *out);
+extern "C" void exomlir_conv1d_4(const int32_t n, int32_t *data, const int32_t *kernels, int32_t *out);
 
 int main() {
 	std::vector<int32_t> data(32768 * 4);
@@ -26,8 +26,8 @@ int main() {
 	std::vector<int32_t> exocc_out(32768 * 4);
 	std::vector<int32_t> exomlir_out(32768 * 4);
 
-	conv1d_lt_32768(nullptr, 32768, data.data(), kernels.data(), exocc_out.data());
-	exomlir_conv1d_lt_32768(32768, data.data(), kernels.data(), exomlir_out.data());
+	conv1d_4(nullptr, 32768, data.data(), kernels.data(), exocc_out.data());
+	exomlir_conv1d_4(32768, data.data(), kernels.data(), exomlir_out.data());
 
 	for (int i = 0; i < 32768 * 4; ++i) {
 		if (std::abs(exocc_out[i] - exomlir_out[i]) > 1e-6f) {

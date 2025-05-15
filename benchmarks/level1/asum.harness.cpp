@@ -5,7 +5,7 @@
 
 #include <exocc/level1/asum.h>
 
-extern "C" void exomlir_exo_sasum_stride_1(int32_t n, const float *x, float *result);
+extern "C" void exomlir_exo_sasum_stride_1(int64_t n, const float *x, float *result);
 
 static void BM_exo_sasum_stride_1(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
@@ -30,7 +30,7 @@ static void BM_exo_sasum_stride_1(benchmark::State &state) {
 	}
 }
 
-BENCHMARK(BM_exo_sasum_stride_1)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
+// BENCHMARK(BM_exo_sasum_stride_1)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
 
 static void BM_exomlir_exo_sasum_stride_1(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
@@ -41,15 +41,11 @@ static void BM_exomlir_exo_sasum_stride_1(benchmark::State &state) {
 	std::uniform_real_distribution<float> dist(0.0f, 1.0f);
 
 	float result = 0.0f;
+	for (auto &v : x) {
+		v = dist(rng);
+	}
 
 	for (auto _ : state) {
-		state.PauseTiming();
-		// fill data
-		for (auto &v : x) {
-			v = dist(rng);
-		}
-		state.ResumeTiming();
-
 		exomlir_exo_sasum_stride_1(n, x.data(), &result);
 		benchmark::DoNotOptimize(result);
 	}

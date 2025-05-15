@@ -5,7 +5,7 @@
 
 #include <exocc/level1/swap.h>
 
-extern "C" void exomlir_exo_sswap_stride_1(int32_t n, const float *x, float *y);
+extern "C" void exomlir_exo_sswap_stride_1(int64_t n, float *x, float *y);
 
 int main() {
 	int_fast32_t n = 2048;

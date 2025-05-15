@@ -5,8 +5,8 @@
 
 #include <exocc/scalar/gemm.h>
 
-extern "C" void exomlir_gemm_lt_128(const int32_t n, const int32_t m, const int32_t k, float *out, const float *a,
-									const float *b);
+extern "C" void exomlir_gemm(const int32_t n, const int32_t m, const int32_t k, float *out, const float *a,
+							 const float *b);
 
 int main() {
 	std::vector<float> a(128 * 128);
@@ -27,11 +27,11 @@ int main() {
 	std::vector<float> exocc_out(128 * 128);
 	std::vector<float> exomlir_out(128 * 128);
 
-	gemm_lt_128(nullptr, 128, 128, 128, exocc_out.data(), a.data(), b.data());
+	gemm(nullptr, 128, 128, 128, exocc_out.data(), a.data(), b.data());
 
 	std::cout << "exocc_out: " << std::endl;
 
-	exomlir_gemm_lt_128(128, 128, 128, exomlir_out.data(), a.data(), b.data());
+	exomlir_gemm(128, 128, 128, exomlir_out.data(), a.data(), b.data());
 
 	for (int i = 0; i < 128; i++) {
 		for (int j = 0; j < 128; j++) {

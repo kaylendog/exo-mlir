@@ -34,6 +34,7 @@ from exomlir.generator import IRGenerator
 from exomlir.platforms.avx2 import InlineAVX2Pass
 from exomlir.platforms.blas import InlineBLASPass
 from exomlir.rewrites.add_prefix import AddPrefixPass
+from exomlir.rewrites.convert_memref_to_llvm import ConvertMemRefToLLVM
 from exomlir.rewrites.convert_scalar_ref import ConvertScalarRefPass
 from exomlir.rewrites.convert_tensor_ref import ConvertTensorRefPass
 from exomlir.rewrites.inline_memory_space import InlineMemorySpacePass
@@ -187,43 +188,17 @@ def transform(
         AddPrefixPass(opts.prefix).apply(ctx, module)
         module.verify()
 
-    ConvertTensorRefPass().apply(ctx, module)
-    module.verify()
-
-    ReconcileIndexCastsPass().apply(ctx, module)
-    module.verify()
-
-    CanonicalizePass().apply(ctx, module)
-    CommonSubexpressionElimination().apply(ctx, module)
-
-    # bail out if we are not lowering to LLVM
-    if opts.target == "builtin":
-        return module
-
-    LowerAllocPass().apply(ctx, module)
+    ConvertMemRefToLLVM().apply(ctx, module)
     module.verify()
     InlineAVX2Pass().apply(ctx, module)
     module.verify()
     InlineBLASPass().apply(ctx, module)
     module.verify()
 
-    if opts.target == "lowered":
-        return module
-
-    ConvertVectorToPtrPass().apply(ctx, module)
-    LowerAffinePass().apply(ctx, module)
-    ConvertMemRefToPtr(lower_func=True).apply(ctx, module)
-    ConvertPtrTypeOffsetsPass().apply(ctx, module)
-    ConvertPtrToLLVMPass().apply(ctx, module)
-
-    if opts.target == "scf":
-        return module
-
     ConvertScfToCf().apply(ctx, module)
     ReconcileUnrealizedCastsPass().apply(ctx, module)
     CanonicalizePass().apply(ctx, module)
     CommonSubexpressionElimination().apply(ctx, module)
-
     module.verify()
 
     return module

@@ -409,13 +409,7 @@ class IRGenerator:
 
     def generate_call_stmt(self, call):
         # build arguments
-        args = [
-            self.cast_to(
-                self.generate_expr(call_arg),
-                self.get_type(proc_arg.type, StringAttr(proc_arg.mem.name())),
-            )
-            for (call_arg, proc_arg) in zip(call.args, call.f.args)
-        ]
+        args = [self.generate_expr(arg) for arg in call.args]
 
         if call.f.instr is not None:
             self.builder.insert(InstrOp(call.f.name, args))
@@ -532,8 +526,8 @@ class IRGenerator:
         """
 
         type = self.get_type(binop.type)
-        lhs = self.cast_to(self.generate_expr(binop.lhs), type)
-        rhs = self.cast_to(self.generate_expr(binop.rhs), type)
+        lhs = self.generate_expr(binop.lhs)
+        rhs = self.generate_expr(binop.rhs)
 
         if binop.op == "+":
             binop = AddfOp(lhs, rhs, result_type=type, flags=FastMathFlagsAttr("none"))
@@ -555,8 +549,8 @@ class IRGenerator:
         """
 
         type = self.get_type(binop.type)
-        lhs = self.cast_to(self.generate_expr(binop.lhs), type)
-        rhs = self.cast_to(self.generate_expr(binop.rhs), type)
+        lhs = self.generate_expr(binop.lhs)
+        rhs = self.generate_expr(binop.rhs)
 
         if binop.op == "+":
             binop = AddiOp(lhs, rhs, result_type=type)

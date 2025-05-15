@@ -5,53 +5,57 @@
 
 #include <exocc/level1/rot.h>
 
-extern "C" void exomlir_exo_srot_stride_1(int32_t n, const float *x, const float *y, const float *c, const float *s);
+extern "C" void exomlir_exo_srot_stride_1(int64_t n, float *x, float *y, const float c, const float s);
 
 int main() {
 	int_fast32_t n = 2048;
-	std::vector<float> x(n);
-	std::vector<float> y(n);
+	std::vector<float> exocc_x(n);
+	std::vector<float> exocc_y(n);
+	std::vector<float> exomlir_x(n);
+	std::vector<float> exomlir_y(n);
 
-	// setup rng
+	// fill data
 	std::mt19937 rng(0);
 	std::uniform_real_distribution<float> dist(0.0f, 1.0f);
 
-	// fill data
-	for (auto &v : x) {
+	for (auto &v : exocc_x) {
+		v = dist(rng);
+	}
+	for (auto &v : exocc_y) {
+		v = dist(rng);
+	}
+
+	rng.seed(0);
+	for (auto &v : exomlir_x) {
+		v = dist(rng);
+	}
+	for (auto &v : exomlir_y) {
 		v = dist(rng);
 	}
 
 	float c = 0.5f;
 	float s = 0.5f;
 
-	// buffers
-	exo_win_1f32 exocc_x = {x.data(), {1}};
-	exo_win_1f32 exocc_y = {y.data(), {1}};
-	std::vector<float> exomlir_x(x);
-	std::vector<float> exomlir_y(y);
-
-	exo_srot_stride_1(nullptr, n, exocc_x, exocc_y, &c, &s);
-	exomlir_exo_srot_stride_1(n, exomlir_x.data(), exomlir_y.data(), &c, &s);
+	exo_srot_stride_1(nullptr, n, {exocc_x.data(), {1}}, {exocc_y.data(), {1}}, &c, &s);
+	exomlir_exo_srot_stride_1(n, exomlir_x.data(), exomlir_y.data(), c, s);
 
 	float precision = 1e-6f;
 
 	for (int i = 0; i < n; ++i) {
 		// check nan
-		if (std::isnan(exomlir_x[i]) || std::isnan(exomlir_y[i])) {
+		if (std::isnan(exocc_x[i]) || std::isnan(exocc_y[i]) || std::isnan(exomlir_x[i]) || std::isnan(exomlir_y[i])) {
 			std::cerr << "NaN detected in input data" << std::endl;
 			return 1;
 		}
 
-		if (std::abs(x[i] - exomlir_x[i]) > precision) {
-			std::cerr << "Expected: " << x[i] << ", got: " << exomlir_x[i] << std::endl;
+		if (std::abs(exocc_x[i] - exomlir_x[i]) > precision) {
+			std::cerr << "Expected: " << exocc_x[i] << ", got: " << exomlir_x[i] << std::endl;
 			return 1;
 		}
-		if (std::abs(y[i] - exomlir_y[i]) > precision) {
-			std::cerr << "Expected: " << y[i] << ", got: " << exomlir_y[i] << std::endl;
+		if (std::abs(exocc_y[i] - exomlir_y[i]) > precision) {
+			std::cerr << "Expected: " << exocc_y[i] << ", got: " << exomlir_y[i] << std::endl;
 			return 1;
 		}
-
-		std::cout << "exocc: " << x[i] << ", exomlir: " << exomlir_x[i] << std::endl;
 	}
 
 	return 0;

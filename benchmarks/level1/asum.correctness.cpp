@@ -5,7 +5,7 @@
 
 #include <exocc/level1/asum.h>
 
-extern "C" void exomlir_exo_sasum_stride_1(int32_t n, const float *x, float *result);
+extern "C" void exomlir_exo_sasum_stride_1(int64_t n, const float *x, float *result);
 
 int main() {
 	int_fast32_t n = 2048;
