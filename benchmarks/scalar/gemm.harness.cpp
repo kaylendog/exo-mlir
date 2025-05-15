@@ -36,7 +36,7 @@ static void BM_gemm(benchmark::State &state) {
 	}
 }
 
-// BENCHMARK(BM_gemm)->RangeMultiplier(2)->Range(16, 512)->Iterations(16);
+BENCHMARK(BM_gemm)->RangeMultiplier(2)->Range(16, 512)->Iterations(16);
 
 static void BM_exomlir_gemm(benchmark::State &state) {
 	int_fast32_t n = state.range(0);

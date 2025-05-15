@@ -14,16 +14,8 @@ LEVEL_1_PROCS = [
     "dot",
     "exo_copy",
     "rot",
-    "scal",
+    # "scal",
     "swap",
-]
-LEVEL_2_PROCS = [
-    "gemm",
-    "mscal",
-    "symm",
-    "syr2k",
-    "syrk",
-    "trmm",
 ]
 
 
@@ -159,18 +151,70 @@ rule benchmark_run_harnesses:
             > build/results/{wildcards.level}/{wildcards.proc}.csv
         """
 
-rule all:
+rule benchmark_process_results:
     input:
-        # benchmark results
+        "build/results/{level}/{proc}.csv",
+    output:
+        "results/data/{level}/{proc}.processed.csv",
+    shell:
+        """
+        python3 tools/process-results.py {input} {output}
+        """
+
+rule benchmark_plot_results:
+    input:
+        "results/data/{level}/{proc}.processed.csv",
+    output:
+        "results/plots/{level}/{proc}.png",
+    shell:
+        """
+        python3 tools/plot-benchmark-results.py {input} {wildcards.level} {wildcards.proc} {output}
+        """
+
+rule heatmaps:
+    input:
         expand(
-            "build/results/scalar/{proc}.csv",
+            "results/data/scalar/{proc}.processed.csv",
             proc=SCALAR_PROCS
         ),
         expand(
-            "build/results/level1/{proc}.csv",
+            "results/data/level1/{proc}.processed.csv",
             proc=LEVEL_1_PROCS
         ),
+        expand(
+            "results/data/level1-unopt/{proc}.processed.csv",
+            proc=LEVEL_1_PROCS
+        ),
+    output:
+        "results/plots/scalar/heatmap.png",
+        "results/plots/level1/heatmap.png",
+        "results/plots/level1-unopt/heatmap.png",
+    shell:
+        """
+        python3 tools/plot-heatmaps.py results/data/scalar/ results/plots/scalar/heatmap.png && \
+        python3 tools/plot-heatmaps.py results/data/level1/ results/plots/level1/heatmap.png && \
+        python3 tools/plot-heatmaps.py results/data/level1-unopt/ results/plots/level1-unopt/heatmap.png
+        """
 
+rule all:
+    input:
+        # plots
+        expand(
+            "results/plots/scalar/{proc}.png",
+            proc=SCALAR_PROCS
+        ),
+        expand(
+            "results/plots/level1/{proc}.png",
+            proc=LEVEL_1_PROCS
+        ),
+        expand(
+            "results/plots/level1-unopt/{proc}.png",
+            proc=LEVEL_1_PROCS
+        ),
+        # heatmaps
+        "results/plots/scalar/heatmap.png",
+        "results/plots/level1/heatmap.png",
+        "results/plots/level1-unopt/heatmap.png",
 
 # rule benchmark_count_instrs:
 #     input:
@@ -201,43 +245,6 @@ rule all:
 #         """
 
 
-
-
-# rule benchmark_process_results:
-#     input:
-#         "build/results/{level}/{proc}.csv",
-#     output:
-#         "build/results/{level}/{proc}.processed.csv",
-#     shell:
-#         """
-#         python3 tools/process-results.py {input}
-#         """
-
-# rule benchmark_plot_results:
-#     input:
-#         "build/results/{level}/{proc}.processed.csv",
-#     output:
-#         "build/plots/{level}/{proc}.png",
-#     shell:
-#         """
-#         python3 tools/plot-benchmark-results.py {input} {wildcards.level} {wildcards.proc}
-#         """
-
-# rule heatmaps:
-#     input:
-#         expand(
-#             "build/plots/{level}/{proc}.processed.csv",
-#             level=config["levels"],
-#             proc=config["procs"]
-#         )
-#     output:
-#         "build/plots/level1/heatmap.png",
-#         "build/plots/level2/heatmap.png",
-#     shell:
-#         """
-#         python3 tools/plot-heatmaps.py build/plots/level1/ && \
-#         python3 tools/plot-heatmaps.py build/plots/level2/
-#         """
 
 # rule all:
 #     input:

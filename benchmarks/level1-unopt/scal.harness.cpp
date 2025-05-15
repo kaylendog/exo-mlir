@@ -33,7 +33,7 @@ static void BM_exo_scal_alpha0(benchmark::State &state) {
 	}
 }
 
-BENCHMARK(BM_exo_scal_alpha0)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
+BENCHMARK(BM_exo_scal_alpha0)->RangeMultiplier(2)->Range(16, 1 << 16)->Iterations(16);
 
 static void BM_exomlir_exo_scal(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
@@ -58,6 +58,6 @@ static void BM_exomlir_exo_scal(benchmark::State &state) {
 	}
 }
 
-BENCHMARK(BM_exomlir_exo_scal)->RangeMultiplier(2)->Range(16, 1 << 24)->Iterations(16);
+BENCHMARK(BM_exomlir_exo_scal)->RangeMultiplier(2)->Range(16, 1 << 16)->Iterations(16);
 
 BENCHMARK_MAIN();

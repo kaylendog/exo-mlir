@@ -4,13 +4,14 @@ import sys
 import matplotlib.pyplot as plt
 import pandas as pd
 
-if len(sys.argv) != 4:
-    print("Usage: python plot-benchmark-results.py <csv_path> <level> <proc>")
+if len(sys.argv) != 5:
+    print("Usage: python plot-benchmark-results.py <csv_path> <level> <proc> <output>")
     sys.exit(1)
 
 csv_path = sys.argv[1]
 level = sys.argv[2]
 proc = sys.argv[3]
+output = sys.argv[4]
 
 df = pd.read_csv(csv_path)
 
@@ -39,10 +40,9 @@ ax.set_xscale("log", base=2)
 ax.legend()
 ax.grid(True, which="both", linestyle="--", linewidth=0.5)
 
-out_dir = os.path.join(os.getcwd(), f"build/plots/{level}")
-os.makedirs(out_dir, exist_ok=True)
 
-out_path = os.path.join(out_dir, f"{proc}.png")
+os.makedirs(os.path.dirname(output), exist_ok=True)
+
 plt.tight_layout()
-plt.savefig(out_path)
+plt.savefig(output)
 plt.close()

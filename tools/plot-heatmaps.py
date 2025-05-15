@@ -4,21 +4,20 @@ from glob import glob
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import seaborn as sns
 from scipy.stats import gmean
 
 BENCHMARK_REPEATS = 16
 
-if len(sys.argv) < 2:
-    print("Usage: python plot-heatmaps.py <directory>")
+if len(sys.argv) < 3:
+    print("Usage: python plot-heatmaps.py <directory> <output>")
     sys.exit(1)
 
 pwd = os.getcwd()
 directory = pwd / Path(sys.argv[1])
 procedures = glob("*.processed.csv", root_dir=directory)
-output = os.path.join(pwd, f"build/plots/{directory.name}/heatmap.png")
+output = pwd / Path(sys.argv[2])
 
 print(f"Found {len(procedures)} files in {directory}")
 
@@ -75,6 +74,9 @@ plt.xlabel("Size")
 plt.ylabel("Procedure")
 plt.yticks(rotation=0)
 plt.tight_layout()
+
+os.makedirs(os.path.dirname(output), exist_ok=True)
+
 plt.savefig(output, dpi=300, bbox_inches="tight", pad_inches=0.1)
 
 print(f"Saved heatmap to {output}")

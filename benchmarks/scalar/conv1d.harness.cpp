@@ -5,16 +5,13 @@
 
 #include <exocc/scalar/conv1d.h>
 
-extern "C" void exomlir_conv1d(int32_t n, int32_t ic, int32_t oc, const int32_t *data, const int32_t *kernels,
-							   int32_t *out);
+extern "C" void exomlir_conv1d_4(int32_t n, const int32_t *data, const int32_t *kernels, int32_t *out);
 
-static void BM_conv1d(benchmark::State &state) {
+static void BM_conv1d_4(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
-	int_fast32_t ic = state.range(1);
-	int_fast32_t oc = state.range(2);
-	std::vector<int32_t> data(n * ic);
-	std::vector<int32_t> kernels(ic * oc);
-	std::vector<int32_t> out(n * oc);
+	std::vector<int32_t> data(n * 4);
+	std::vector<int32_t> kernels(4 * 4);
+	std::vector<int32_t> out(n * 4);
 
 	// setup rng
 	std::mt19937 rng(0);
@@ -31,20 +28,18 @@ static void BM_conv1d(benchmark::State &state) {
 		}
 		state.ResumeTiming();
 
-		conv1d(nullptr, n, ic, oc, data.data(), kernels.data(), out.data());
+		conv1d_4(nullptr, n, data.data(), kernels.data(), out.data());
 		benchmark::DoNotOptimize(out.data());
 	}
 }
 
-BENCHMARK(BM_conv1d)->RangeMultiplier(2)->Ranges({{16, 1 << 24}, {4, 4}, {4, 4}});
+BENCHMARK(BM_conv1d_4)->RangeMultiplier(2)->Range(16, 512)->Iterations(16);
 
-static void BM_exomlir_conv1d(benchmark::State &state) {
+static void BM_exomlir_conv1d_4(benchmark::State &state) {
 	int_fast32_t n = state.range(0);
-	int_fast32_t ic = state.range(1);
-	int_fast32_t oc = state.range(2);
-	std::vector<int32_t> data(n * ic);
-	std::vector<int32_t> kernels(ic * oc);
-	std::vector<int32_t> out(n * oc);
+	std::vector<int32_t> data(n * 4);
+	std::vector<int32_t> kernels(4 * 4);
+	std::vector<int32_t> out(n * 4);
 
 	// setup rng
 	std::mt19937 rng(0);
@@ -61,11 +56,11 @@ static void BM_exomlir_conv1d(benchmark::State &state) {
 		}
 		state.ResumeTiming();
 
-		exomlir_conv1d(n, ic, oc, data.data(), kernels.data(), out.data());
+		exomlir_conv1d_4(n, data.data(), kernels.data(), out.data());
 		benchmark::DoNotOptimize(out.data());
 	}
 }
 
-BENCHMARK(BM_exomlir_conv1d)->RangeMultiplier(2)->Ranges({{16, 1 << 24}, {4, 4}, {4, 4}});
+BENCHMARK(BM_exomlir_conv1d_4)->RangeMultiplier(2)->Range(16, 512)->Iterations(16);
 
 BENCHMARK_MAIN();

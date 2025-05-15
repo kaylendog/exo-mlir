@@ -4,12 +4,12 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-if len(sys.argv) != 2:
-    print("Usage: python preprocess-csv.py <input>")
+if len(sys.argv) != 3:
+    print("Usage: python preprocess-csv.py <input> <output>")
     sys.exit(1)
 
 input_path = Path(sys.argv[1])
-output_path = input_path.parent / f"{input_path.stem}.processed.csv"
+output_path = Path(sys.argv[2])
 
 SIZE_REGEX = re.compile(r"/(\d+)")
 
