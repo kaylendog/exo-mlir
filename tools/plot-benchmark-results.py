@@ -37,9 +37,9 @@ ax.set_xlabel("Problem Size")
 ax.set_ylabel("CPU Time (ns)")
 ax.set_title(f"{proc} {level}")
 ax.set_xscale("log", base=2)
+ax.set_yscale("log", base=10)
 ax.legend()
 ax.grid(True, which="both", linestyle="--", linewidth=0.5)
-
 
 os.makedirs(os.path.dirname(output), exist_ok=True)
 

@@ -2,7 +2,7 @@ import os
 import sys
 from glob import glob
 from pathlib import Path
-
+from math import log2
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -29,24 +29,23 @@ for proc in procedures:
 
     df = pd.read_csv(filepath)
 
-    # speen
-    pivoted = df.pivot(
-        index="size",
-        columns="compiler",
-        values=[f"cputime_{i}" for i in range(BENCHMARK_REPEATS)],
-    )
+    del df["mean"]
+    del df["stddev"]
 
-    ratio = pd.DataFrame(index=pivoted.index)
+    # df["geomean"] = df[(f"cputime_{i}" for i in range(BENCHMARK_REPEATS))].apply(gmean)
 
-    # compute cputime ratios
-    for i in range(BENCHMARK_REPEATS):
-        ratio[f"cputime_{i}"] = (
-            pivoted[f"cputime_{i}"].iloc[:, 0] / pivoted[f"cputime_{i}"].iloc[:, 1]
-        )
+    exomlir = df[df["compiler"] == "exomlir"]
+    del exomlir["compiler"]
+    exomlir.set_index("size", inplace=True)
+    exomlir["geomean"] = exomlir.apply(gmean, axis=1)
 
-    # reduce to geometric mean
-    ratio = ratio.apply(gmean, axis=1)
-    heatmap_df[procedure] = ratio
+    exocc = df[df["compiler"] == "exocc"]
+    del exocc["compiler"]
+    exocc.set_index("size", inplace=True)
+    exocc["geomean"] = exocc.apply(gmean, axis=1)
+
+    heatmap_df[procedure] = exocc["geomean"] / exomlir["geomean"]
+
 
 # sort columns by procedure
 heatmap_df = heatmap_df.reindex(
@@ -55,21 +54,22 @@ heatmap_df = heatmap_df.reindex(
 )
 
 # create heatmap
-plt.figure(figsize=(10, 8))
+plt.figure(figsize=(10, 6))
 
 cmap = sns.diverging_palette(10, 133, as_cmap=True)
 
 sns.heatmap(
-    heatmap_df.T,
+    heatmap_df,
     annot=True,
     fmt=".2f",
     cmap=cmap,
     cbar_kws={"label": "Speedup"},
-    linewidths=0.5,
-    linecolor="black",
+    linewidths=0,
     center=1.0,
+    yticklabels=tuple(f"$2^{{{int(log2(n))}}}$" for n in heatmap_df.index),
 )
-plt.title(f"{directory.name} Geomean of runtime of exomlir / exocc")
+
+plt.title(f"{directory.name} Geomean of runtime of exocc / exomlir")
 plt.xlabel("Size")
 plt.ylabel("Procedure")
 plt.yticks(rotation=0)
