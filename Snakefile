@@ -104,7 +104,7 @@ rule benchmark_compile_correctness:
         "build/correctness/{level}/{proc}.x",
     shell:
         """
-        clang++ -O3 -mavx -mfma -mavx2 -fuse-ld=lld -fsanitize=undefined \
+        clang++ -O3 -mavx -mfma -mavx2 -fuse-ld=lld -fsanitize=address,undefined \
             -Ibuild \
             -o build/correctness/{wildcards.level}/{wildcards.proc}.x \
             build/exocc/{wildcards.level}/{wildcards.proc}.o \

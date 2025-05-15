@@ -1,10 +1,13 @@
+from functools import reduce
+
 from xdsl.context import Context
-from xdsl.dialects import arith, llvm, memref, vector
+from xdsl.dialects import arith, llvm, vector
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
-    IndexType,
     IntegerAttr,
+    MemRefType,
     ModuleOp,
+    UnrealizedConversionCastOp,
     VectorType,
     f32,
     f64,
@@ -21,6 +24,48 @@ from xdsl.pattern_rewriter import (
 )
 
 from exomlir.dialects import exo, llvm_intrinsics
+
+
+class ConvertAllocOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: exo.AllocOp, rewriter: PatternRewriter):
+        if op.mem.data != "VEC_AVX2":
+            return
+
+        assert isinstance(op.result.type, MemRefType), op.result.type
+
+        rewriter.replace_matched_op(
+            (
+                const_op := arith.ConstantOp(
+                    IntegerAttr(
+                        reduce(lambda x, y: x * y, op.result.type.get_shape()),
+                        i64,
+                    )
+                ),
+                alloc_op := llvm.AllocaOp(const_op.result, op.result.type.element_type),
+                UnrealizedConversionCastOp.get(alloc_op.results[0], op.result.type),
+            )
+        )
+
+
+class ConvertFreeOp(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: exo.FreeOp, rewriter: PatternRewriter):
+        if op.mem.data != "VEC_AVX2":
+            return
+
+        rewriter.erase_matched_op()
+
+
+class InlineBLASAllocPass(ModulePass):
+    name = "inline-blas-alloc"
+
+    def apply(self, ctx: Context, m: ModuleOp) -> None:
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier(
+                [ConvertAllocOp(), ConvertFreeOp()],
+            )
+        ).rewrite_module(m)
 
 
 class ConvertSelect(RewritePattern):

@@ -273,6 +273,9 @@ class ConvertWindowOp(RewritePattern):
 class ConvertAllocOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: exo.AllocOp, rewriter: PatternRewriter):
+        if op.mem.data != "DRAM":
+            return
+
         # require static sized memref
         assert isinstance(op.result.type, MemRefType)
         assert all(size != -1 for size in op.result.type.get_shape())
@@ -297,6 +300,9 @@ class ConvertAllocOp(RewritePattern):
 class ConvertFreeOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: exo.FreeOp, rewriter: PatternRewriter):
+        if op.mem.data != "DRAM":
+            return
+
         rewriter.replace_matched_op(
             (
                 cast_op := UnrealizedConversionCastOp.get(
@@ -350,6 +356,13 @@ class ConvertMemRefToLLVM(ModulePass):
                 [
                     ConvertAllocOp(),
                     ConvertFreeOp(),
+                ]
+            ),
+        ).rewrite_module(m)
+
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier(
+                [
                     ConvertReadOp(),
                     ConvertAssignOp(),
                     ConvertReduceOp(),

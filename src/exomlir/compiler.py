@@ -32,7 +32,7 @@ from exomlir.dialects.index import Index
 from exomlir.dialects.llvm_intrinsics import LLVMIntrinsics
 from exomlir.generator import IRGenerator
 from exomlir.platforms.avx2 import InlineAVX2Pass
-from exomlir.platforms.blas import InlineBLASPass
+from exomlir.platforms.blas import InlineBLASPass, InlineBLASAllocPass
 from exomlir.rewrites.add_prefix import AddPrefixPass
 from exomlir.rewrites.convert_memref_to_llvm import ConvertMemRefToLLVM
 from exomlir.rewrites.convert_scalar_ref import ConvertScalarRefPass
@@ -187,6 +187,9 @@ def transform(
     if opts.prefix is not None:
         AddPrefixPass(opts.prefix).apply(ctx, module)
         module.verify()
+
+    InlineBLASAllocPass().apply(ctx, module)
+    module.verify()
 
     ConvertMemRefToLLVM().apply(ctx, module)
     module.verify()
