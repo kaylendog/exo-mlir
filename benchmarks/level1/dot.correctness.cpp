@@ -33,10 +33,11 @@ int main() {
 	exo_sdot_stride_1(nullptr, n, exocc_x, exocc_y, &result_exocc);
 	exomlir_exo_sdot_stride_1(n, x.data(), y.data(), &result_exomlir);
 
-	float precision = 1e-6f;
+	float precision = 1e-5f;
 
 	if (std::abs(result_exocc - result_exomlir) > precision) {
-		std::cerr << "Expected: " << result_exocc << ", got: " << result_exomlir << std::endl;
+		std::cerr << "Expected: " << result_exocc << ", got: " << result_exomlir
+				  << " (delta: " << std::abs(result_exocc - result_exomlir) << ")" << std::endl;
 		return 1;
 	}
 

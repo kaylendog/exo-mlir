@@ -333,6 +333,16 @@ class ExternOp(IRDLOperation):
 
 Exo = Dialect(
     "exo",
-    [AssignOp, ReduceOp, ReadOp, WindowOp, IntervalOp, InstrOp],
+    [
+        AllocOp,
+        FreeOp,
+        AssignOp,
+        ReduceOp,
+        ReadOp,
+        WindowOp,
+        IntervalOp,
+        InstrOp,
+        ExternOp,
+    ],
     [],
 )

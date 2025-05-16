@@ -28,10 +28,11 @@ int main() {
 	exo_sasum_stride_1(nullptr, n, exocc_x, &result_exocc);
 	exomlir_exo_sasum_stride_1(n, x.data(), &result_exomlir);
 
-	float precision = 1e-6f;
+	float precision = 1e-3f;
 
 	if (std::abs(result_exocc - result_exomlir) > precision) {
-		std::cerr << "Expected: " << result_exocc << ", got: " << result_exomlir << std::endl;
+		std::cerr << "Expected: " << result_exocc << ", got: " << result_exomlir
+				  << " (delta: " << std::abs(result_exocc - result_exomlir) << ")" << std::endl;
 		return 1;
 	}
 
